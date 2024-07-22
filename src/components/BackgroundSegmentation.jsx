@@ -7,18 +7,16 @@ const BackgroundSegmentation = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [isSegmenting, setIsSegmenting] = useState(false);
+  const [showCanvas, setShowCanvas] = useState(false);
 
   useEffect(() => {
     const loadSegmentation = async () => {
-
-      //Loads relevant models from the web
       const segmenter = new SelfieSegmentation({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1/${file}`;
         }
       });
 
-      //Starts segmentation
       await segmenter.initialize();
 
       segmenter.setOptions({
@@ -26,10 +24,8 @@ const BackgroundSegmentation = () => {
         selfieMode: true,
       });
 
-      //Creates 2D canvas to display the resulting video feed.
       segmenter.onResults(onResults);
 
-      //Request camera access and stream video feed
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -41,7 +37,6 @@ const BackgroundSegmentation = () => {
         }
       }
 
-      //returns segmentation model for later use
       return segmenter;
     };
 
@@ -50,7 +45,6 @@ const BackgroundSegmentation = () => {
       segmenter = s;
     });
 
-    //Stops segmentation model when the component is unmounted
     return () => {
       if (segmenter) {
         segmenter.close();
@@ -58,8 +52,9 @@ const BackgroundSegmentation = () => {
     };
   }, []);
 
-  //Defines 2D canvas where the result is to be shown
   const onResults = (results) => {
+    if (!canvasRef.current) return;
+
     const canvasCtx = canvasRef.current.getContext('2d');
     const width = canvasRef.current.width;
     const height = canvasRef.current.height;
@@ -82,18 +77,52 @@ const BackgroundSegmentation = () => {
     canvasCtx.restore();
   };
 
+  const startSegmentation = async () => {
+    if (videoRef.current && canvasRef.current) {
+      const segmenter = new SelfieSegmentation({
+        locateFile: (file) => {
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1/${file}`;
+        }
+      });
+
+      await segmenter.initialize();
+
+      segmenter.setOptions({
+        modelSelection: 1,
+        selfieMode: true,
+      });
+
+      segmenter.onResults(onResults);
+
+      const sendToSegmenter = async () => {
+        if (videoRef.current.videoWidth > 0) {
+          await segmenter.send({image: videoRef.current});
+        }
+        requestAnimationFrame(sendToSegmenter);
+      };
+
+      sendToSegmenter();
+      setIsSegmenting(true);
+      setShowCanvas(true);
+    }
+  };
+
   return (
     <div className="relative w-screen h-screen overflow-hidden">
-      <button 
-      onClick={startSegmentation}
-      disabled={isSegmenting}
-      className="absolute bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors disabled:bg-gray-400"
-    >
-      {isSegmenting ? 'Segmentation Running' : 'Start Segmentation'}
-    </button>
-    <video ref={videoRef} className="hidden" autoPlay playsInline />
-    <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full" />
-  </div>
+      {!showCanvas && (
+        <button 
+          onClick={startSegmentation}
+          disabled={isSegmenting}
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors disabled:bg-gray-400"
+        >
+          Start Segmentation
+        </button>
+      )}
+      <video ref={videoRef} className="hidden" autoPlay playsInline />
+      {showCanvas && (
+        <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full" />
+      )}
+    </div>
   );
 };
 
