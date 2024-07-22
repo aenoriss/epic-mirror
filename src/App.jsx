@@ -21,7 +21,7 @@ function App() {
           onClick={() => setCount((count) => count + 1)}
           className="mb-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
         >
-          count is {count}
+          count issss {count}
         </button>
         <p className="mb-4">
           Edit <code className="bg-gray-200 p-1 rounded">src/App.jsx</code> and save to test HMR
