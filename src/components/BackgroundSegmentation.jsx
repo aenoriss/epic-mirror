@@ -13,6 +13,25 @@ const BackgroundSegmentation = () => {
   const [loadingState, setLoadingState] = useState('initial');
   const [error, setError] = useState(null);
 
+  useEffect(() => {
+    if (backgroundVideoRef.current) {
+      backgroundVideoRef.current.src = backgroundVideo;
+      backgroundVideoRef.current.loop = true;
+      backgroundVideoRef.current.muted = true;
+      backgroundVideoRef.current.play().catch(error => {
+        // Handle error silently or set an error state if needed
+      });
+    }
+
+    return () => {
+      if (backgroundVideoRef.current) {
+        backgroundVideoRef.current.pause();
+        backgroundVideoRef.current.src = '';
+      }
+    };
+  }, []);
+  
+
   const initializeSegmenter = useCallback(async () => {
     try {
       const segmenter = new SelfieSegmentation({
@@ -76,24 +95,6 @@ const BackgroundSegmentation = () => {
       }
     };
   }, [initializeSegmenter]);
-
-  useEffect(() => {
-    if (backgroundVideoRef.current) {
-      backgroundVideoRef.current.src = backgroundVideo;
-      backgroundVideoRef.current.loop = true;
-      backgroundVideoRef.current.muted = true;
-      backgroundVideoRef.current.play().catch(error => {
-        // Handle error silently or set an error state if needed
-      });
-    }
-
-    return () => {
-      if (backgroundVideoRef.current) {
-        backgroundVideoRef.current.pause();
-        backgroundVideoRef.current.src = '';
-      }
-    };
-  }, []);
 
   const updateCanvasSize = () => {
     if (videoRef.current && canvasRef.current) {
@@ -203,7 +204,7 @@ const BackgroundSegmentation = () => {
         {isSegmenting ? 'Stop Segmentation' : 'Start Segmentation'}
       </button>
       <video ref={videoRef} className="hidden" autoPlay playsInline />
-      <video ref={backgroundVideoRef} className="hidden" loop muted playsInline />
+      <video ref={backgroundVideoRef} className="hidden" loop muted playsInline autoPlay />
       <canvas ref={canvasRef} className="absolute top-0 left-1/2 transform -translate-x-1/2 z-10" />
     </div>
   );
