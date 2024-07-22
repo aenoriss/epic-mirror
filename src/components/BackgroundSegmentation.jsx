@@ -9,33 +9,45 @@ const BackgroundSegmentation = () => {
   const [isSegmenting, setIsSegmenting] = useState(false);
 
   useEffect(() => {
-    const selfieSegmentation = new SelfieSegmentation({
-      locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
-      }
-    });
+    const loadSegmentation = async () => {
+      const segmenter = new SelfieSegmentation({
+        locateFile: (file) => {
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1/${file}`;
+        }
+      });
 
-    selfieSegmentation.setOptions({
-      modelSelection: 1,
-      selfieMode: true,
-    });
+      await segmenter.initialize();
 
-    selfieSegmentation.onResults(onResults);
+      segmenter.setOptions({
+        modelSelection: 1,
+        selfieMode: true,
+      });
 
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then((stream) => {
+      segmenter.onResults(onResults);
+
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
           }
-        })
-        .catch((error) => {
+        } catch (error) {
           console.error('Error accessing the camera:', error);
-        });
-    }
+        }
+      }
+
+      return segmenter;
+    };
+
+    let segmenter;
+    loadSegmentation().then(s => {
+      segmenter = s;
+    });
 
     return () => {
-      selfieSegmentation.close();
+      if (segmenter) {
+        segmenter.close();
+      }
     };
   }, []);
 
@@ -57,29 +69,31 @@ const BackgroundSegmentation = () => {
     canvasCtx.restore();
   };
 
-  const startSegmentation = () => {
+  const startSegmentation = async () => {
     if (videoRef.current && canvasRef.current) {
-      const selfieSegmentation = new SelfieSegmentation({
+      const segmenter = new SelfieSegmentation({
         locateFile: (file) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1/${file}`;
         }
       });
 
-      selfieSegmentation.setOptions({
+      await segmenter.initialize();
+
+      segmenter.setOptions({
         modelSelection: 1,
         selfieMode: true,
       });
 
-      selfieSegmentation.onResults(onResults);
+      segmenter.onResults(onResults);
 
-      const camera = new Camera(videoRef.current, {
-        onFrame: async () => {
-          await selfieSegmentation.send({image: videoRef.current});
-        },
-        width: 640,
-        height: 480
-      });
-      camera.start();
+      const sendToSegmenter = async () => {
+        if (videoRef.current.videoWidth > 0) {
+          await segmenter.send({image: videoRef.current});
+        }
+        requestAnimationFrame(sendToSegmenter);
+      };
+
+      sendToSegmenter();
       setIsSegmenting(true);
     }
   };
