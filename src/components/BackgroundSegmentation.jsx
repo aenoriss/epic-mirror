@@ -70,21 +70,12 @@ const BackgroundSegmentation = () => {
   const updateCanvasSize = () => {
     if (videoRef.current && canvasRef.current) {
       const videoAspectRatio = videoRef.current.videoWidth / videoRef.current.videoHeight;
-      const screenWidth = window.innerWidth;
       const screenHeight = window.innerHeight;
-      const screenAspectRatio = screenWidth / screenHeight;
-
-      let canvasWidth, canvasHeight;
-
-      if (videoAspectRatio > screenAspectRatio) {
-        // Video is wider than the screen
-        canvasWidth = screenWidth;
-        canvasHeight = screenWidth / videoAspectRatio;
-      } else {
-        // Video is taller than or equal to the screen
-        canvasHeight = screenHeight;
-        canvasWidth = screenHeight * videoAspectRatio;
-      }
+      
+      // Always set height to screen height
+      const canvasHeight = screenHeight;
+      // Calculate width based on the video aspect ratio
+      const canvasWidth = screenHeight * videoAspectRatio;
 
       const pixelRatio = window.devicePixelRatio || 1;
       canvasRef.current.width = canvasWidth * pixelRatio;
@@ -178,7 +169,7 @@ const BackgroundSegmentation = () => {
         {isSegmenting ? 'Stop Segmentation' : 'Start Segmentation'}
       </button>
       <video ref={videoRef} className="hidden" autoPlay playsInline />
-      <canvas ref={canvasRef} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10" />
+      <canvas ref={canvasRef} className="absolute top-0 left-1/2 transform -translate-x-1/2 z-10" />
     </div>
   );
 };
