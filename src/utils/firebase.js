@@ -16,13 +16,12 @@ const app = initializeApp(firebaseConfig);
 export const db = getDatabase();
 export const storage = getStorage(app);
 
-export const handleGoogleSignUp = async () => {
-    return await signInWithPopup(auth, provider)
-       .then((result) => {
-         const {isNewUser} = getAdditionalUserInfo(result)
-         return {credential: result, isNewUser};
-       })
-       .catch((error) => {
-         console.error("Error signing up with Google:", error);
-       });
-  };
+//Changes the scene
+export const changeScene = async () => {
+   
+}; 
+
+//Takes the screesnshot
+export const takeCapture = async () => {
+   
+};
