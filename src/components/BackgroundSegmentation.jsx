@@ -120,18 +120,17 @@ const BackgroundSegmentation = () => {
     const height = canvasRef.current.height;
 
     canvasCtx.save();
-    canvasCtx.clearRect(0, 0, width, height);
-    
-    // Draw the background video
-    canvasCtx.drawImage(backgroundVideoRef.current, 0, 0, width, height);
+    canvasCtx.clearRect(0, 0, width, height);   
     
     // Draw the segmentation mask
-    canvasCtx.globalCompositeOperation = 'destination-in';
     canvasCtx.drawImage(results.segmentationMask, 0, 0, width, height);
     
     // Draw the original image (person)
-    canvasCtx.globalCompositeOperation = 'source-over';
+    canvasCtx.globalCompositeOperation = 'source-atop';
     canvasCtx.drawImage(results.image, 0, 0, width, height);
+
+    canvasCtx.globalCompositeOperation = 'destination-over';
+ canvasCtx.drawImage(backgroundVideoRef.current, 0, 0, width, height);
     
     canvasCtx.restore();
     console.log("Frame rendered");
