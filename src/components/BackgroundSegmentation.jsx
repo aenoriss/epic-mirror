@@ -12,25 +12,7 @@ const BackgroundSegmentation = () => {
   const segmenterRef = useRef(null);
   const [loadingState, setLoadingState] = useState('initial');
   const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (backgroundVideoRef.current) {
-      backgroundVideoRef.current.src = backgroundVideo;
-      backgroundVideoRef.current.loop = true;
-      backgroundVideoRef.current.muted = true;
-      backgroundVideoRef.current.play().catch(error => {
-        // Handle error silently or set an error state if needed
-      });
-    }
-
-    return () => {
-      if (backgroundVideoRef.current) {
-        backgroundVideoRef.current.pause();
-        backgroundVideoRef.current.src = '';
-      }
-    };
-  }, []);
-  
+  const [isVideoReady, setIsVideoReady] = useState(false);
 
   const initializeSegmenter = useCallback(async () => {
     try {
@@ -96,6 +78,45 @@ const BackgroundSegmentation = () => {
     };
   }, [initializeSegmenter]);
 
+  const playBackgroundVideo = useCallback(() => {
+    if (backgroundVideoRef.current) {
+      backgroundVideoRef.current.play().catch(error => {
+        setError('Tap to start background video');
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (backgroundVideoRef.current) {
+      backgroundVideoRef.current.src = backgroundVideo;
+      backgroundVideoRef.current.loop = true;
+      backgroundVideoRef.current.muted = true;
+      backgroundVideoRef.current.playsInline = true;
+
+      const handleCanPlayThrough = () => {
+        setIsVideoReady(true);
+        playBackgroundVideo();
+      };
+
+      backgroundVideoRef.current.addEventListener('canplaythrough', handleCanPlayThrough);
+      backgroundVideoRef.current.addEventListener('pause', playBackgroundVideo);
+      backgroundVideoRef.current.addEventListener('ended', playBackgroundVideo);
+
+      // Start loading the video
+      backgroundVideoRef.current.load();
+
+      return () => {
+        if (backgroundVideoRef.current) {
+          backgroundVideoRef.current.removeEventListener('canplaythrough', handleCanPlayThrough);
+          backgroundVideoRef.current.removeEventListener('pause', playBackgroundVideo);
+          backgroundVideoRef.current.removeEventListener('ended', playBackgroundVideo);
+          backgroundVideoRef.current.pause();
+          backgroundVideoRef.current.src = '';
+        }
+      };
+    }
+  }, [playBackgroundVideo]);
+
   const updateCanvasSize = () => {
     if (videoRef.current && canvasRef.current) {
       const videoAspectRatio = videoRef.current.videoWidth / videoRef.current.videoHeight;
@@ -139,15 +160,19 @@ const BackgroundSegmentation = () => {
     if (!segmenterRef.current) {
       await initializeSegmenter();
     }
-    setIsSegmenting(true);
-  }, [initializeSegmenter]);
+    if (isVideoReady) {
+      setIsSegmenting(true);
+    } else {
+      setError('Please wait for the background video to load');
+    }
+  }, [initializeSegmenter, isVideoReady]);
 
   const stopSegmentation = () => {
     setIsSegmenting(false);
   };
 
   useEffect(() => {
-    if (loadingState !== 'ready' || !isSegmenting) return;
+    if (loadingState !== 'ready' || !isSegmenting || !isVideoReady) return;
 
     let animationFrameId;
 
@@ -155,6 +180,9 @@ const BackgroundSegmentation = () => {
       if (videoRef.current && videoRef.current.videoWidth > 0 && segmenterRef.current) {
         try {
           await segmenterRef.current.send({image: videoRef.current});
+          if (backgroundVideoRef.current && backgroundVideoRef.current.paused) {
+            playBackgroundVideo();
+          }
         } catch (error) {
           if (error.name === 'BindingError') {
             await initializeSegmenter();
@@ -177,7 +205,7 @@ const BackgroundSegmentation = () => {
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [isSegmenting, loadingState, initializeSegmenter]);
+  }, [isSegmenting, loadingState, initializeSegmenter, playBackgroundVideo, isVideoReady]);
 
   useEffect(() => {
     window.addEventListener('resize', updateCanvasSize);
@@ -186,25 +214,28 @@ const BackgroundSegmentation = () => {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden">
-      {loadingState === 'loading' && (
+      {(loadingState === 'loading' || !isVideoReady) && (
         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white z-30">
           Loading...
         </div>
       )}
       {error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-red-500 z-30">
+        <div 
+          className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-red-500 z-30"
+          onClick={playBackgroundVideo}
+        >
           {error}
         </div>
       )}
       <button 
         onClick={isSegmenting ? stopSegmentation : startSegmentation}
-        className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors z-20 ${loadingState !== 'ready' ? 'opacity-50 cursor-not-allowed' : ''}`}
-        disabled={loadingState !== 'ready'}
+        className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors z-20 ${(loadingState !== 'ready' || !isVideoReady) ? 'opacity-50 cursor-not-allowed' : ''}`}
+        disabled={loadingState !== 'ready' || !isVideoReady}
       >
         {isSegmenting ? 'Stop Segmentation' : 'Start Segmentation'}
       </button>
       <video ref={videoRef} className="hidden" autoPlay playsInline />
-      <video ref={backgroundVideoRef} className="hidden" loop muted playsInline autoPlay />
+      <video ref={backgroundVideoRef} className="hidden" loop muted playsInline />
       <canvas ref={canvasRef} className="absolute top-0 left-1/2 transform -translate-x-1/2 z-10" />
     </div>
   );
