@@ -5,7 +5,7 @@ import BackgroundSegmentation from './components/BackgroundSegmentation';
 
 function App() {
   return (
-    <div className="App">
+    <div className="flex flex-col items-center justify-center w-full h-full" >
       <BackgroundSegmentation />
     </div>
   )
