@@ -15,16 +15,13 @@ const BackgroundSegmentation = () => {
 
   const initializeSegmenter = useCallback(async () => {
     try {
-      console.log("Initializing segmenter...");
       const segmenter = new SelfieSegmentation({
         locateFile: (file) => {
-          console.log(`Loading file: ${file}`);
           return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1/${file}`;
         }
       });
 
       await segmenter.initialize();
-      console.log("Segmenter initialized successfully");
 
       segmenter.setOptions({
         modelSelection: 1,
@@ -32,14 +29,12 @@ const BackgroundSegmentation = () => {
       });
 
       segmenter.onResults((results) => {
-        console.log("Segmentation results received", results);
         onResults(results);
       });
 
       segmenterRef.current = segmenter;
       setLoadingState('ready');
     } catch (error) {
-      console.error('Error initializing segmenter:', error);
       setError('Failed to initialize segmentation. Please refresh and try again.');
       setLoadingState('error');
     }
@@ -62,14 +57,12 @@ const BackgroundSegmentation = () => {
               };
             }
           } catch (error) {
-            console.error('Error accessing the camera:', error);
             setError('Failed to access camera. Please ensure you have granted camera permissions.');
             setLoadingState('error');
             return;
           }
         }
       } catch (error) {
-        console.error('Error in loadSegmentation:', error);
         setError('Failed to load segmentation. Please refresh and try again.');
         setLoadingState('error');
       }
@@ -77,20 +70,30 @@ const BackgroundSegmentation = () => {
 
     loadSegmentation();
 
-    // Set up background video
-    if (backgroundVideoRef.current) {
-      backgroundVideoRef.current.src = backgroundVideo;
-      backgroundVideoRef.current.loop = true;
-      backgroundVideoRef.current.muted = true;
-      backgroundVideoRef.current.play();
-    }
-
     return () => {
       if (segmenterRef.current) {
         segmenterRef.current.close();
       }
     };
   }, [initializeSegmenter]);
+
+  useEffect(() => {
+    if (backgroundVideoRef.current) {
+      backgroundVideoRef.current.src = backgroundVideo;
+      backgroundVideoRef.current.loop = true;
+      backgroundVideoRef.current.muted = true;
+      backgroundVideoRef.current.play().catch(error => {
+        // Handle error silently or set an error state if needed
+      });
+    }
+
+    return () => {
+      if (backgroundVideoRef.current) {
+        backgroundVideoRef.current.pause();
+        backgroundVideoRef.current.src = '';
+      }
+    };
+  }, []);
 
   const updateCanvasSize = () => {
     if (videoRef.current && canvasRef.current) {
@@ -105,13 +108,11 @@ const BackgroundSegmentation = () => {
       canvasRef.current.height = canvasHeight * pixelRatio;
       canvasRef.current.style.width = `${canvasWidth}px`;
       canvasRef.current.style.height = `${canvasHeight}px`;
-      console.log(`Canvas size updated: ${canvasWidth}x${canvasHeight}`);
     }
   };
 
   const onResults = (results) => {
     if (!canvasRef.current || !backgroundVideoRef.current) {
-      console.log("Canvas or background video not ready");
       return;
     }
 
@@ -122,18 +123,15 @@ const BackgroundSegmentation = () => {
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, width, height);   
     
-    // Draw the segmentation mask
     canvasCtx.drawImage(results.segmentationMask, 0, 0, width, height);
     
-    // Draw the original image (person)
     canvasCtx.globalCompositeOperation = 'source-atop';
     canvasCtx.drawImage(results.image, 0, 0, width, height);
 
     canvasCtx.globalCompositeOperation = 'destination-over';
- canvasCtx.drawImage(backgroundVideoRef.current, 0, 0, width, height);
+    canvasCtx.drawImage(backgroundVideoRef.current, 0, 0, width, height);
     
     canvasCtx.restore();
-    console.log("Frame rendered");
   };
 
   const startSegmentation = useCallback(async () => {
@@ -141,12 +139,10 @@ const BackgroundSegmentation = () => {
       await initializeSegmenter();
     }
     setIsSegmenting(true);
-    console.log("Segmentation started");
   }, [initializeSegmenter]);
 
   const stopSegmentation = () => {
     setIsSegmenting(false);
-    console.log("Segmentation stopped");
   };
 
   useEffect(() => {
@@ -158,11 +154,8 @@ const BackgroundSegmentation = () => {
       if (videoRef.current && videoRef.current.videoWidth > 0 && segmenterRef.current) {
         try {
           await segmenterRef.current.send({image: videoRef.current});
-          console.log("Frame sent to segmenter");
         } catch (error) {
-          console.error('Error in segmentation:', error);
           if (error.name === 'BindingError') {
-            console.log("Reinitializing segmenter due to BindingError");
             await initializeSegmenter();
           } else {
             setError('Segmentation error occurred. Please try again.');
