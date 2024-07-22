@@ -84,15 +84,15 @@ const BackgroundSegmentation = () => {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden">
-    <video ref={videoRef} className="hidden" autoPlay playsInline />
-    <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full" />
-    <button 
+      <button 
       onClick={startSegmentation}
       disabled={isSegmenting}
       className="absolute bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors disabled:bg-gray-400"
     >
       {isSegmenting ? 'Segmentation Running' : 'Start Segmentation'}
     </button>
+    <video ref={videoRef} className="hidden" autoPlay playsInline />
+    <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full" />
   </div>
   );
 };
