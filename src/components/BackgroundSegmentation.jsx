@@ -60,72 +60,26 @@ const BackgroundSegmentation = () => {
 
   //Defines 2D canvas where the result is to be shown
   const onResults = (results) => {
-    // Get the 2D rendering context of the canvas
     const canvasCtx = canvasRef.current.getContext('2d');
-    
-    // Save the current canvas state
+    const width = canvasRef.current.width;
+    const height = canvasRef.current.height;
+    const pixelRatio = window.devicePixelRatio || 1;
+
     canvasCtx.save();
+    canvasCtx.clearRect(0, 0, width, height);
+
+    canvasCtx.scale(pixelRatio, pixelRatio);
     
-    // Clear the entire canvas
-    canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    canvasCtx.drawImage(results.segmentationMask, 0, 0, width / pixelRatio, height / pixelRatio);
     
-    // Draw the segmentation mask onto the canvas
-    // This mask is a grayscale image where white represents the person and black the background
-    canvasCtx.drawImage(results.segmentationMask, 0, 0, canvasRef.current.width, canvasRef.current.height);
-    
-    // Set the composition mode to 'source-in'
-    // This will make subsequent drawing operations only affect the non-transparent parts of the existing content
     canvasCtx.globalCompositeOperation = 'source-in';
+    canvasCtx.drawImage(results.image, 0, 0, width / pixelRatio, height / pixelRatio);
     
-    // Draw the original image
-    // Due to 'source-in', this will only be drawn where the mask is non-transparent (i.e., the person)
-    canvasCtx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
-    
-    // Change the composition mode to 'destination-atop'
-    // This will draw new content behind the existing content, but only where the existing content is transparent
     canvasCtx.globalCompositeOperation = 'destination-atop';
+    canvasCtx.fillStyle = '#00FF00';  // Green background
+    canvasCtx.fillRect(0, 0, width / pixelRatio, height / pixelRatio);
     
-    // Set the fill color to green
-    canvasCtx.fillStyle = '#00FF00';
-    
-    // Fill the entire canvas with green
-    // Due to 'destination-atop', this will only fill the areas where the canvas is currently transparent (i.e., the background)
-    canvasCtx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-    
-    // Restore the canvas state to what it was before we started drawing
     canvasCtx.restore();
-  };
-
-  const startSegmentation = async () => {
-
-    //If there is video feed init the segmentation model
-    if (videoRef.current && canvasRef.current) {
-      const segmenter = new SelfieSegmentation({
-        locateFile: (file) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1/${file}`;
-        }
-      });
-
-      await segmenter.initialize();
-
-      segmenter.setOptions({
-        modelSelection: 1,
-        selfieMode: true,
-      });
-
-      segmenter.onResults(onResults);
-
-      //Passes camera frame to segmentation model
-      const sendToSegmenter = async () => {
-        if (videoRef.current.videoWidth > 0) {
-          await segmenter.send({image: videoRef.current});
-        }
-        requestAnimationFrame(sendToSegmenter);
-      };
-
-      sendToSegmenter();
-      setIsSegmenting(true);
-    }
   };
 
   return (
