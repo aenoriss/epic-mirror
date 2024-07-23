@@ -2,30 +2,42 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { SelfieSegmentation } from '@mediapipe/selfie_segmentation';
 import '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs-backend-webgl';
-import { PoseLandmarker, FilesetResolver, DrawingUtils } from '@mediapipe/tasks-vision';
-import backgroundVideo from '../assets/campo.mp4';  // Adjust the path as needed
+import { PoseLandmarker, FilesetResolver, GestureRecognizer } from '@mediapipe/tasks-vision';
+import countryside from '../assets/countryside.mp4';
+import interview from '../assets/interview.mp4'; 
+import { saveCurrentCapture } from '../utils/firebase';
 
 const BackgroundSegmentation = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const backgroundVideoRef = useRef(null);
   const [isSegmenting, setIsSegmenting] = useState(false);
-  const [raisingHand, setRaisingHand] = useState(false);
-  const [frameCounter, setFrameCounter] = useState(0);
+  const overlayRef = useRef(null);
+
+  const [thumbsUp, setThumbsUp] = useState(null);
+  const [indexUp, setIndexUp] = useState(null);
+
+  const timerRef = useRef(null);
+  const [isCaptureActive, setIsCaptureActive] = useState(false);
+
+  const [currentScene, setCurrentScene] = useState(1);
+
+  const [triggerCounter, setTriggerCounter] = useState(4);
   const segmentationPromiseRef = useRef(null);
   const [loadingState, setLoadingState] = useState('initial');
   const [error, setError] = useState(null);
   const segmenterRef = useRef(null);
-  const poseLandmarkerRef = useRef(null);
+  const gestureRecognizerRef = useRef(null);
   const animationFrameRef = useRef(null);
 
   useEffect(() => {
+
+
     if (backgroundVideoRef.current) {
-      backgroundVideoRef.current.src = backgroundVideo;
+      currentScene == 1 ? backgroundVideoRef.current.src = countryside : backgroundVideoRef.current.src = interview;
       backgroundVideoRef.current.loop = true;
       backgroundVideoRef.current.muted = true;
       backgroundVideoRef.current.play().catch(error => {
-        // Handle error silently or set an error state if needed
       });
     }
 
@@ -35,12 +47,83 @@ const BackgroundSegmentation = () => {
         backgroundVideoRef.current.src = '';
       }
     };
+  }, [currentScene]);
+
+  useEffect(() => {
+    const updateOverlaySize = () => {
+      if (canvasRef.current && overlayRef.current) {
+        const { width, height } = canvasRef.current.getBoundingClientRect();
+        overlayRef.current.style.width = `${width}px`;
+        overlayRef.current.style.height = `${height}px`;
+      }
+    };
+
+    updateOverlaySize();
+    window.addEventListener('resize', updateOverlaySize);
+
+    return () => window.removeEventListener('resize', updateOverlaySize);
   }, []);
 
   useEffect(() => {
     window.addEventListener('resize', updateCanvasSize);
     return () => window.removeEventListener('resize', updateCanvasSize);
   }, []);
+
+  const createBlobFromCanvas = useCallback(() => {
+    if (canvasRef.current) {
+      canvasRef.current.toBlob((blob) => {
+        if (blob) {
+          console.log('Blob created:', URL.createObjectURL(blob));
+          saveCurrentCapture(blob);
+        } else {
+          console.error('Failed to create blob from canvas');
+        }
+      }, 'image/png');
+    }
+  }, []);
+
+  useEffect(() => {
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    const runCountdown = async () => {
+
+      console.log(" COUNTDOWN CALLED");
+
+        // Countdown starts
+        for (let i = 4; i >= 0; i--) {
+          await sleep(2000);
+          setTriggerCounter(i);
+        }
+
+        // Segmentation is stopped
+        stopSegmentation();
+
+        // Capture is taken and saved
+        createBlobFromCanvas();
+        
+        //Experience Restarts
+        await sleep(2000);
+
+        //Experience Restarts
+        setIsCaptureActive(false);
+        startSegmentation();
+    };
+
+    if(isCaptureActive == true){
+      console.log("Capture Active");
+      runCountdown();
+    }
+
+    return () => {
+      //When Capture finishes restart countdown
+      setTriggerCounter(4);
+    };
+
+  }, [isCaptureActive]);
+
+  useEffect(() => {
+    console.log("triggerCounter", triggerCounter);
+  }, [triggerCounter]);
 
   const initializeSegmenter = useCallback(async () => {
     try {
@@ -77,16 +160,15 @@ const BackgroundSegmentation = () => {
         'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm'
       );
 
-      const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+      const gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
         baseOptions: {
-          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task',
           delegate: 'GPU',
         },
         runningMode: 'VIDEO',
-        numPoses: 2,
       });
 
-      poseLandmarkerRef.current = poseLandmarker;
+      gestureRecognizerRef.current = gestureRecognizer;
     } catch (error) {
       console.error('Failed to initialize pose landmarker:', error);
     }
@@ -180,15 +262,15 @@ const BackgroundSegmentation = () => {
   }, []);
 
   const sendToSegmenter = useCallback(async () => {
-    if (videoRef.current && videoRef.current.videoWidth > 0 && segmenterRef.current && poseLandmarkerRef.current) {
+    if (videoRef.current && videoRef.current.videoWidth > 0 && segmenterRef.current && gestureRecognizerRef.current) {
       try {
         const segmentationPromise = new Promise((resolve) => {
           segmentationPromiseRef.current = { resolve };
         });
 
-        const [_, poseResults] = await Promise.all([
+        const [_, gestureResults] = await Promise.all([
           segmenterRef.current.send({ image: videoRef.current }),
-          poseLandmarkerRef.current.detectForVideo(videoRef.current, performance.now()),
+          gestureRecognizerRef.current.recognizeForVideo(videoRef.current, performance.now()),
           segmentationPromise
         ]);
 
@@ -197,21 +279,26 @@ const BackgroundSegmentation = () => {
         onResults({
           segmentationMask: segmentationResults.segmentationMask,
           image: segmentationResults.image,
-          poseLandmarks: poseResults.landmarks
+          gestureRecognitionResult: gestureResults
         });
 
-        if (poseResults.landmarks && poseResults.landmarks.length > 0) {
-          setRaisingHand(poseResults.landmarks[0][15].y < poseResults.landmarks[0][11].y);
-        } else {
-          console.log('No landmarks detected');
+        let currentThumbsUp = false;
+        let currentIndexUp = false;
+
+        if (gestureResults.gestures && gestureResults.gestures.length > 0) {
+          currentThumbsUp = gestureResults.gestures[0].some(gesture => gesture.categoryName === 'Thumb_Up');
+          currentIndexUp = gestureResults.gestures[0].some(gesture => gesture.categoryName === 'Pointing_Up');
         }
 
-        setFrameCounter(prev => prev + 1);
+        if (!isCaptureActive) {
+          setThumbsUp(currentThumbsUp);
+          setIndexUp(currentIndexUp);
+        }
 
       } catch (error) {
         console.error('Error in sendToSegmenter:', error);
         if (error.name === 'BindingError') {
-          console.log('Attempting to reinitialize segmenter and pose landmarker...');
+          console.log('Attempting to reinitialize segmenter and gesture recognizer...');
           await initializeSegmenter();
           await initializePoseLandmarker();
         } else {
@@ -225,7 +312,43 @@ const BackgroundSegmentation = () => {
     if (isSegmenting) {
       animationFrameRef.current = requestAnimationFrame(sendToSegmenter);
     }
-  }, [isSegmenting, onResults, initializeSegmenter, initializePoseLandmarker]);
+  }, [isSegmenting, onResults, initializeSegmenter, initializePoseLandmarker, isCaptureActive]);
+
+  const changeScene = async () => {
+    currentScene == 1 ? setCurrentScene(2) : setCurrentScene(1);
+  };
+
+  useEffect(() => {
+    console.log("currentScene", currentScene);
+  },[currentScene])
+
+  useEffect(() => {
+    if (thumbsUp) {
+      timerRef.current = setTimeout(() => {
+        if(isCaptureActive == false){
+          setIsCaptureActive(true);
+        }
+      }, 3000);
+    } else if(indexUp){
+      timerRef.current = setTimeout(() => {
+        if(isCaptureActive == false){
+          changeScene();
+        }
+      }, 3000);
+    } else {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [thumbsUp, indexUp]);
+
+  
 
   useEffect(() => {
     if (loadingState === 'ready' && isSegmenting) {
@@ -265,21 +388,49 @@ const BackgroundSegmentation = () => {
           {error}
         </div>
       )}
-      {raisingHand && (
+      
+      {thumbsUp && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-red-500 text-white rounded z-20">
-          LEVANTANDO LA MANO
+          Thumbs up
         </div>
       )}
-      <button 
+
+      {indexUp && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-red-500 text-white rounded z-20">
+          indexUp
+        </div>
+      )}
+
+      {!isCaptureActive && <button 
         onClick={isSegmenting ? stopSegmentation : startSegmentation}
         className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors z-20 ${loadingState !== 'ready' ? 'opacity-50 cursor-not-allowed' : ''}`}
         disabled={loadingState !== 'ready'}
       >
         {isSegmenting ? 'Stop Segmentation' : 'Start Segmentation'}
-      </button>
+      </button>}
+
       <video ref={videoRef} className="hidden" autoPlay playsInline />
       <video ref={backgroundVideoRef} className="hidden" loop muted playsInline autoPlay />
-      <canvas ref={canvasRef} className="absolute top-0 left-1/2 transform -translate-x-1/2 z-10" />
+
+      <div className="h-full flex items-center justify-center absolute top-0 left-1/2 transform -translate-x-1/2">
+        <canvas ref={canvasRef} className="absolute top-0 left-1/2 transform -translate-x-1/2 z-10" />
+
+        <div 
+        ref={overlayRef} 
+        className="w-full h-full flex items-center justify-center pointer-events-none z-50"
+      >
+        {isCaptureActive && (
+          <div className="text-white text-9xl font-bold text-center" style={{
+            textShadow: '0 0 10px rgba(0,0,0,0.5)',
+            transition: 'opacity 0.3s ease-in-out',
+            opacity: triggerCounter >= 0 ? 1 : 0,
+          }}>
+            {triggerCounter !== 0 ? triggerCounter : '¡Foto Tomada!'}
+          </div>
+        )}
+      </div>
+      </div>
+      
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref,  query, orderByChild, limitToLast, get, set, onValue, push, update, runTransaction} from "firebase/database";
-import { getStorage, deleteObject } from "firebase/storage";
+import { getStorage, getDownloadURL, uploadBytes, ref as sRef } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCzeiWlUdYEAnhQ42Tzfl8-MMXUPdn90ts",
@@ -16,12 +16,20 @@ const app = initializeApp(firebaseConfig);
 export const db = getDatabase();
 export const storage = getStorage(app);
 
-//Changes the scene
-export const changeScene = async () => {
-   
-}; 
 
 //Takes the screesnshot
-export const takeCapture = async () => {
-   
+export const saveCurrentCapture = async (blob) => {
+  try {
+    const storage = getStorage();
+    const storageRef = sRef(storage, 'captures/' + Date.now() + '.png');
+    const snapshot = await uploadBytes(storageRef, blob);
+    console.log('Uploaded a blob or file!');
+    
+    // Get the download URL
+    const downloadURL = await getDownloadURL(snapshot.ref);
+
+    console.log("downloadURL", downloadURL)
+  } catch (error) {
+    console.error('Error uploading to Firebase Storage:', error);
+  }
 };
