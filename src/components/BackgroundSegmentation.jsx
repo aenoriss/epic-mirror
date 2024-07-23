@@ -11,10 +11,13 @@ const BackgroundSegmentation = () => {
   const backgroundVideoRef = useRef(null);
   const [isSegmenting, setIsSegmenting] = useState(false);
   const [raisingHand, setRaisingHand] = useState(false);
-  const segmenterRef = useRef(null);
+  const [frameCounter, setFrameCounter] = useState(0);
+  const segmentationPromiseRef = useRef(null);
   const [loadingState, setLoadingState] = useState('initial');
   const [error, setError] = useState(null);
+  const segmenterRef = useRef(null);
   const poseLandmarkerRef = useRef(null);
+  const animationFrameRef = useRef(null);
 
   useEffect(() => {
     if (backgroundVideoRef.current) {
@@ -34,24 +37,9 @@ const BackgroundSegmentation = () => {
     };
   }, []);
 
-  const initializePoseLandmarker = useCallback(async () => {
-    try {
-      const vision = await FilesetResolver.forVisionTasks(
-        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm'
-      );
-      const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
-          delegate: 'GPU',
-        },
-        runningMode: 'VIDEO',
-        numPoses: 2,
-      });
-
-      poseLandmarkerRef.current = poseLandmarker;
-    } catch (error) {
-      console.error('Failed to initialize pose landmarker:', error);
-    }
+  useEffect(() => {
+    window.addEventListener('resize', updateCanvasSize);
+    return () => window.removeEventListener('resize', updateCanvasSize);
   }, []);
 
   const initializeSegmenter = useCallback(async () => {
@@ -68,14 +56,39 @@ const BackgroundSegmentation = () => {
       });
 
       segmenter.onResults((results) => {
-        onResults(results);
+        if (segmentationPromiseRef.current) {
+          segmentationPromiseRef.current.resolve(results);
+          segmentationPromiseRef.current = null;
+        }
       });
 
       segmenterRef.current = segmenter;
       setLoadingState('ready');
+
     } catch (error) {
       setError('Failed to initialize segmentation. Please refresh and try again.');
       setLoadingState('error');
+    }
+  }, []);
+
+  const initializePoseLandmarker = useCallback(async () => {
+    try {
+      const vision = await FilesetResolver.forVisionTasks(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm'
+      );
+
+      const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+          delegate: 'GPU',
+        },
+        runningMode: 'VIDEO',
+        numPoses: 2,
+      });
+
+      poseLandmarkerRef.current = poseLandmarker;
+    } catch (error) {
+      console.error('Failed to initialize pose landmarker:', error);
     }
   }, []);
 
@@ -89,8 +102,10 @@ const BackgroundSegmentation = () => {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
           try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+
             if (videoRef.current) {
               videoRef.current.srcObject = stream;
+
               videoRef.current.onloadedmetadata = () => {
                 updateCanvasSize();
                 videoRef.current.play();
@@ -133,7 +148,7 @@ const BackgroundSegmentation = () => {
     }
   };
 
-  const onResults = (results) => {
+  const onResults = useCallback((results) => {
     if (!canvasRef.current || !backgroundVideoRef.current) {
       return;
     }
@@ -141,43 +156,87 @@ const BackgroundSegmentation = () => {
     const canvasCtx = canvasRef.current.getContext('2d');
     const width = canvasRef.current.width;
     const height = canvasRef.current.height;
-
+    
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, width, height);
 
+    // Draw the segmentation mask (already inverted due to selfieMode: true)
     canvasCtx.drawImage(results.segmentationMask, 0, 0, width, height);
 
-    canvasCtx.globalCompositeOperation = 'source-atop';
+    // Set composite operation to only draw where the mask is
+    canvasCtx.globalCompositeOperation = 'source-in';
+
+    // Draw the camera feed (now flipped)
     canvasCtx.drawImage(results.image, 0, 0, width, height);
 
+    // Reset the transform
+    canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
+
+    // Draw the background video behind everything
     canvasCtx.globalCompositeOperation = 'destination-over';
     canvasCtx.drawImage(backgroundVideoRef.current, 0, 0, width, height);
 
-    // Draw pose landmarks
-    drawPoseLandmarks(results.image);
-
     canvasCtx.restore();
-  };
+  }, []);
 
-  const drawPoseLandmarks = (image) => {
-    if (!poseLandmarkerRef.current || !canvasRef.current) return;
-  
-    const canvasCtx = canvasRef.current.getContext('2d');
-    const drawingUtils = new DrawingUtils(canvasCtx);
-  
-    poseLandmarkerRef.current.detectForVideo(image, performance.now(), (result) => {
-      // console.log('PoseLandmarker Result:', result);  // Log the entire result for debugging
-  
-      if (result.landmarks && result.landmarks.length > 0) {
-    
-        console.log('Right Hand Landmark:', result.landmarks[0][15]["y"] < result.landmarks[0][11]["y"]);
-        setRaisingHand(result.landmarks[0][15]["y"] < result.landmarks[0][11]["y"])
-    
-      } else {
-        console.log('No landmarks detected');
+  const sendToSegmenter = useCallback(async () => {
+    if (videoRef.current && videoRef.current.videoWidth > 0 && segmenterRef.current && poseLandmarkerRef.current) {
+      try {
+        const segmentationPromise = new Promise((resolve) => {
+          segmentationPromiseRef.current = { resolve };
+        });
+
+        const [_, poseResults] = await Promise.all([
+          segmenterRef.current.send({ image: videoRef.current }),
+          poseLandmarkerRef.current.detectForVideo(videoRef.current, performance.now()),
+          segmentationPromise
+        ]);
+
+        const segmentationResults = await segmentationPromise;
+
+        onResults({
+          segmentationMask: segmentationResults.segmentationMask,
+          image: segmentationResults.image,
+          poseLandmarks: poseResults.landmarks
+        });
+
+        if (poseResults.landmarks && poseResults.landmarks.length > 0) {
+          setRaisingHand(poseResults.landmarks[0][15].y < poseResults.landmarks[0][11].y);
+        } else {
+          console.log('No landmarks detected');
+        }
+
+        setFrameCounter(prev => prev + 1);
+
+      } catch (error) {
+        console.error('Error in sendToSegmenter:', error);
+        if (error.name === 'BindingError') {
+          console.log('Attempting to reinitialize segmenter and pose landmarker...');
+          await initializeSegmenter();
+          await initializePoseLandmarker();
+        } else {
+          setError(`Processing error: ${error.message}. Please try again.`);
+          stopSegmentation();
+          return;
+        }
       }
-    });
-  };
+    }
+
+    if (isSegmenting) {
+      animationFrameRef.current = requestAnimationFrame(sendToSegmenter);
+    }
+  }, [isSegmenting, onResults, initializeSegmenter, initializePoseLandmarker]);
+
+  useEffect(() => {
+    if (loadingState === 'ready' && isSegmenting) {
+      sendToSegmenter();
+    }
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [loadingState, isSegmenting, sendToSegmenter]);
 
   const startSegmentation = useCallback(async () => {
     if (!segmenterRef.current) {
@@ -186,46 +245,12 @@ const BackgroundSegmentation = () => {
     setIsSegmenting(true);
   }, [initializeSegmenter]);
 
-  const stopSegmentation = () => {
+  const stopSegmentation = useCallback(() => {
     setIsSegmenting(false);
-  };
-
-  useEffect(() => {
-    if (loadingState !== 'ready' || !isSegmenting) return;
-
-    let animationFrameId;
-
-    const sendToSegmenter = async () => {
-      if (videoRef.current && videoRef.current.videoWidth > 0 && segmenterRef.current) {
-        try {
-          await segmenterRef.current.send({ image: videoRef.current });
-        } catch (error) {
-          if (error.name === 'BindingError') {
-            await initializeSegmenter();
-          } else {
-            setError('Segmentation error occurred. Please try again.');
-            stopSegmentation();
-            return;
-          }
-        }
-      }
-      if (isSegmenting) {
-        animationFrameId = requestAnimationFrame(sendToSegmenter);
-      }
-    };
-
-    sendToSegmenter();
-
-    return () => {
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
-    };
-  }, [isSegmenting, loadingState, initializeSegmenter]);
-
-  useEffect(() => {
-    window.addEventListener('resize', updateCanvasSize);
-    return () => window.removeEventListener('resize', updateCanvasSize);
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
   }, []);
 
   return (
@@ -240,11 +265,11 @@ const BackgroundSegmentation = () => {
           {error}
         </div>
       )}
-
-      {raisingHand && <div className={`absolute top-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-red-500 text-white rounded z-20`}
-      >
-        LEVANTANDO LA MANOsdfsdfsdfsdfsdsdfdsfsdfdsd
-      </div>}
+      {raisingHand && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-red-500 text-white rounded z-20">
+          LEVANTANDO LA MANO
+        </div>
+      )}
       <button 
         onClick={isSegmenting ? stopSegmentation : startSegmentation}
         className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors z-20 ${loadingState !== 'ready' ? 'opacity-50 cursor-not-allowed' : ''}`}
