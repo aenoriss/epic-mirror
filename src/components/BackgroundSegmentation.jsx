@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { SelfieSegmentation } from '@mediapipe/selfie_segmentation';
 import '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs-backend-webgl';
+import { PoseLandmarker, FilesetResolver, DrawingUtils } from '@mediapipe/tasks-vision';
 import backgroundVideo from '../assets/campo.mp4';  // Adjust the path as needed
 
 const BackgroundSegmentation = () => {
@@ -9,17 +10,54 @@ const BackgroundSegmentation = () => {
   const canvasRef = useRef(null);
   const backgroundVideoRef = useRef(null);
   const [isSegmenting, setIsSegmenting] = useState(false);
+  const [raisingHand, setRaisingHand] = useState(false);
   const segmenterRef = useRef(null);
   const [loadingState, setLoadingState] = useState('initial');
   const [error, setError] = useState(null);
-  const [isVideoReady, setIsVideoReady] = useState(false);
+  const poseLandmarkerRef = useRef(null);
+
+  useEffect(() => {
+    if (backgroundVideoRef.current) {
+      backgroundVideoRef.current.src = backgroundVideo;
+      backgroundVideoRef.current.loop = true;
+      backgroundVideoRef.current.muted = true;
+      backgroundVideoRef.current.play().catch(error => {
+        // Handle error silently or set an error state if needed
+      });
+    }
+
+    return () => {
+      if (backgroundVideoRef.current) {
+        backgroundVideoRef.current.pause();
+        backgroundVideoRef.current.src = '';
+      }
+    };
+  }, []);
+
+  const initializePoseLandmarker = useCallback(async () => {
+    try {
+      const vision = await FilesetResolver.forVisionTasks(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm'
+      );
+      const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+          delegate: 'GPU',
+        },
+        runningMode: 'VIDEO',
+        numPoses: 2,
+      });
+
+      poseLandmarkerRef.current = poseLandmarker;
+    } catch (error) {
+      console.error('Failed to initialize pose landmarker:', error);
+    }
+  }, []);
 
   const initializeSegmenter = useCallback(async () => {
     try {
       const segmenter = new SelfieSegmentation({
-        locateFile: (file) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1/${file}`;
-        }
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1/${file}`,
       });
 
       await segmenter.initialize();
@@ -46,6 +84,7 @@ const BackgroundSegmentation = () => {
       setLoadingState('loading');
       try {
         await initializeSegmenter();
+        await initializePoseLandmarker();
 
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
           try {
@@ -76,52 +115,13 @@ const BackgroundSegmentation = () => {
         segmenterRef.current.close();
       }
     };
-  }, [initializeSegmenter]);
-
-  const playBackgroundVideo = useCallback(() => {
-    if (backgroundVideoRef.current) {
-      backgroundVideoRef.current.play().catch(error => {
-        setError('Tap to start background video');
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    if (backgroundVideoRef.current) {
-      backgroundVideoRef.current.src = backgroundVideo;
-      backgroundVideoRef.current.loop = true;
-      backgroundVideoRef.current.muted = true;
-      backgroundVideoRef.current.playsInline = true;
-
-      const handleCanPlayThrough = () => {
-        setIsVideoReady(true);
-        playBackgroundVideo();
-      };
-
-      backgroundVideoRef.current.addEventListener('canplaythrough', handleCanPlayThrough);
-      backgroundVideoRef.current.addEventListener('pause', playBackgroundVideo);
-      backgroundVideoRef.current.addEventListener('ended', playBackgroundVideo);
-
-      // Start loading the video
-      backgroundVideoRef.current.load();
-
-      return () => {
-        if (backgroundVideoRef.current) {
-          backgroundVideoRef.current.removeEventListener('canplaythrough', handleCanPlayThrough);
-          backgroundVideoRef.current.removeEventListener('pause', playBackgroundVideo);
-          backgroundVideoRef.current.removeEventListener('ended', playBackgroundVideo);
-          backgroundVideoRef.current.pause();
-          backgroundVideoRef.current.src = '';
-        }
-      };
-    }
-  }, [playBackgroundVideo]);
+  }, [initializeSegmenter, initializePoseLandmarker]);
 
   const updateCanvasSize = () => {
     if (videoRef.current && canvasRef.current) {
       const videoAspectRatio = videoRef.current.videoWidth / videoRef.current.videoHeight;
       const screenHeight = window.innerHeight;
-      
+
       const canvasHeight = screenHeight;
       const canvasWidth = screenHeight * videoAspectRatio;
 
@@ -143,46 +143,62 @@ const BackgroundSegmentation = () => {
     const height = canvasRef.current.height;
 
     canvasCtx.save();
-    canvasCtx.clearRect(0, 0, width, height);   
-    
+    canvasCtx.clearRect(0, 0, width, height);
+
     canvasCtx.drawImage(results.segmentationMask, 0, 0, width, height);
-    
+
     canvasCtx.globalCompositeOperation = 'source-atop';
     canvasCtx.drawImage(results.image, 0, 0, width, height);
 
     canvasCtx.globalCompositeOperation = 'destination-over';
     canvasCtx.drawImage(backgroundVideoRef.current, 0, 0, width, height);
-    
+
+    // Draw pose landmarks
+    drawPoseLandmarks(results.image);
+
     canvasCtx.restore();
+  };
+
+  const drawPoseLandmarks = (image) => {
+    if (!poseLandmarkerRef.current || !canvasRef.current) return;
+  
+    const canvasCtx = canvasRef.current.getContext('2d');
+    const drawingUtils = new DrawingUtils(canvasCtx);
+  
+    poseLandmarkerRef.current.detectForVideo(image, performance.now(), (result) => {
+      // console.log('PoseLandmarker Result:', result);  // Log the entire result for debugging
+  
+      if (result.landmarks && result.landmarks.length > 0) {
+    
+        console.log('Right Hand Landmark:', result.landmarks[0][15]["y"] < result.landmarks[0][11]["y"]);
+        setRaisingHand(result.landmarks[0][15]["y"] < result.landmarks[0][11]["y"])
+    
+      } else {
+        console.log('No landmarks detected');
+      }
+    });
   };
 
   const startSegmentation = useCallback(async () => {
     if (!segmenterRef.current) {
       await initializeSegmenter();
     }
-    if (isVideoReady) {
-      setIsSegmenting(true);
-    } else {
-      setError('Please wait for the background video to load');
-    }
-  }, [initializeSegmenter, isVideoReady]);
+    setIsSegmenting(true);
+  }, [initializeSegmenter]);
 
   const stopSegmentation = () => {
     setIsSegmenting(false);
   };
 
   useEffect(() => {
-    if (loadingState !== 'ready' || !isSegmenting || !isVideoReady) return;
+    if (loadingState !== 'ready' || !isSegmenting) return;
 
     let animationFrameId;
 
     const sendToSegmenter = async () => {
       if (videoRef.current && videoRef.current.videoWidth > 0 && segmenterRef.current) {
         try {
-          await segmenterRef.current.send({image: videoRef.current});
-          if (backgroundVideoRef.current && backgroundVideoRef.current.paused) {
-            playBackgroundVideo();
-          }
+          await segmenterRef.current.send({ image: videoRef.current });
         } catch (error) {
           if (error.name === 'BindingError') {
             await initializeSegmenter();
@@ -205,7 +221,7 @@ const BackgroundSegmentation = () => {
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [isSegmenting, loadingState, initializeSegmenter, playBackgroundVideo, isVideoReady]);
+  }, [isSegmenting, loadingState, initializeSegmenter]);
 
   useEffect(() => {
     window.addEventListener('resize', updateCanvasSize);
@@ -214,28 +230,30 @@ const BackgroundSegmentation = () => {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden">
-      {(loadingState === 'loading' || !isVideoReady) && (
+      {loadingState === 'loading' && (
         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white z-30">
           Loading...
         </div>
       )}
       {error && (
-        <div 
-          className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-red-500 z-30"
-          onClick={playBackgroundVideo}
-        >
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-red-500 z-30">
           {error}
         </div>
       )}
+
+      {raisingHand && <div className={`absolute top-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-red-500 text-white rounded z-20`}
+      >
+        LEVANTANDO LA MANOsdfsdfsdfsdfsdsdfdsfsdfdsd
+      </div>}
       <button 
         onClick={isSegmenting ? stopSegmentation : startSegmentation}
-        className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors z-20 ${(loadingState !== 'ready' || !isVideoReady) ? 'opacity-50 cursor-not-allowed' : ''}`}
-        disabled={loadingState !== 'ready' || !isVideoReady}
+        className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors z-20 ${loadingState !== 'ready' ? 'opacity-50 cursor-not-allowed' : ''}`}
+        disabled={loadingState !== 'ready'}
       >
         {isSegmenting ? 'Stop Segmentation' : 'Start Segmentation'}
       </button>
       <video ref={videoRef} className="hidden" autoPlay playsInline />
-      <video ref={backgroundVideoRef} className="hidden" loop muted playsInline />
+      <video ref={backgroundVideoRef} className="hidden" loop muted playsInline autoPlay />
       <canvas ref={canvasRef} className="absolute top-0 left-1/2 transform -translate-x-1/2 z-10" />
     </div>
   );

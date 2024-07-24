@@ -5,9 +5,14 @@ export function mediapipe_workaround() {
   return {
     name: 'mediapipe_workaround',
     load(id) {
-      if (path.basename(id) === 'selfie_segmentation.js') {
+      const basename = path.basename(id);
+      if (basename === 'selfie_segmentation.js' || basename === 'pose.js') {
         let code = fs.readFileSync(id, 'utf-8');
-        code += 'exports.SelfieSegmentation = SelfieSegmentation;';
+        if (basename === 'selfie_segmentation.js') {
+          code += 'exports.SelfieSegmentation = SelfieSegmentation;';
+        } else if (basename === 'pose.js') {
+          code += 'exports.Pose = Pose;';
+        }
         return { code };
       } else {
         return null;
