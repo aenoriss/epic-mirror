@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { mediapipe_workaround } from './src/utils/mediapipe-workaround';
+import { mediapipe_workaround } from './src/Utils/mediapipe-workaround';
 
 export default defineConfig({
   plugins: [react()],
