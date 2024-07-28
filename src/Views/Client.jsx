@@ -19,8 +19,9 @@ function Client() {
   const handleDownload = async () => {
     if (downloadURL) {
       try {
-        // Use FileSaver to save the blob as a file
-        saveAs(downloadURL, `sigmaAgro_photo-${id}.png`);
+        const response = await fetch(downloadURL);
+        const blob = await response.blob();
+        saveAs(blob, `sigmaAgro_photo-${id}.png`);
       } catch (error) {
         console.error('Error downloading the image:', error);
       }
