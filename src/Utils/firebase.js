@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref,  query, orderByChild, limitToLast, get, set, onValue, push, update, runTransaction} from "firebase/database";
-import { getStorage, getDownloadURL, uploadBytes, ref as sRef } from "firebase/storage";
+import { getStorage, getDownloadURL, getBlob, uploadBytes, ref as sRef  } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCzeiWlUdYEAnhQ42Tzfl8-MMXUPdn90ts",
@@ -35,6 +35,22 @@ export const saveCurrentCapture = async (blob) => {
     console.error('Error uploading to Firebase Storage:', error);
   }
 };
+
+export const getImageBlob = async (imagePath) => {
+  try {
+ 
+    // Get a reference from the URL
+    const fileRef = sRef(storage, imagePath);
+
+    // Get the blob directly from Firebase Storage
+    const blob = await getBlob(fileRef);
+    
+    return blob;
+  } catch (error) {
+    console.error("Error getting blob:", error);
+    return null;
+  }
+}
 
 export const getImgUrl = async (id) => {
   try {
