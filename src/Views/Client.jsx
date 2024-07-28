@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getImgUrl } from '../Utils/firebase';
+import { saveAs } from 'file-saver';
 
 function Client() {
   const { id } = useParams();
@@ -15,31 +16,42 @@ function Client() {
     fetchData(id);
   }, [id]);
 
-  const handleDownload = () => {
-    if (downloadURL) {
-      const link = document.createElement('a');
-      link.href = downloadURL;
-      link.download = `sigmaAgro_photo-${id}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+  const handleDownload = async () => {
+    if (imageUrl) {
+      try {
+        // Fetch the image as a blob
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+
+        // Use FileSaver to save the blob as a file
+        saveAs(blob, `sigmaAgro_photo-${id}.png`);
+      } catch (error) {
+        console.error('Error downloading the image:', error);
+      }
     }
   };
 
   const handleShare = async () => {
     if (downloadURL) {
-      if (navigator.share) {
-        try {
+      try {
+        // Fetch the image as a blob
+        const response = await fetch(downloadURL);
+        const blob = await response.blob();
+
+        // Check if the Web Share API is available
+        if (navigator.share) {
           await navigator.share({
-            title: 'Sigma Agro Foto',
-            text: 'Comparti la foto en redes sociales!',
-            url: window.location.href,
+            files: [new File([blob], `sigmaAgro_photo-${id}.png`, { type: blob.type })],
+            title: 'Check out this image!',
+            text: 'Shared from SigmaAgro'
           });
-        } catch (error) {
-          console.error('Error sharing:', error);
+        } else {
+          // Fallback for browsers that don't support the Web Share API
+          console.log('Web Share API not supported');
+          // Here you could implement a custom share dialog or other sharing methods
         }
-      } else {
-        alert('Web Share API is not supported in your browser. You can manually copy the URL to share.');
+      } catch (error) {
+        console.error('Error sharing the image:', error);
       }
     }
   };
