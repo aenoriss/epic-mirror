@@ -2,10 +2,12 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { SelfieSegmentation } from '@mediapipe/selfie_segmentation';
 import '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs-backend-webgl';
-import { PoseLandmarker, FilesetResolver, GestureRecognizer } from '@mediapipe/tasks-vision';
+import { FilesetResolver, GestureRecognizer } from '@mediapipe/tasks-vision';
+import QRCode from 'qrcode.react';
 import countryside from '../assets/countryside.mp4';
 import interview from '../assets/interview.mp4'; 
-import { saveCurrentCapture } from '../utils/firebase';
+import { saveCurrentCapture } from '../Utils/firebase';
+import { set } from 'firebase/database';
 
 const BackgroundSegmentation = () => {
   const videoRef = useRef(null);
@@ -21,6 +23,7 @@ const BackgroundSegmentation = () => {
   const [isCaptureActive, setIsCaptureActive] = useState(false);
 
   const [currentScene, setCurrentScene] = useState(1);
+  const [captureId, setCaptureId] = useState(null);
 
   const [triggerCounter, setTriggerCounter] = useState(4);
   const segmentationPromiseRef = useRef(null);
@@ -71,10 +74,18 @@ const BackgroundSegmentation = () => {
 
   const createBlobFromCanvas = useCallback(() => {
     if (canvasRef.current) {
-      canvasRef.current.toBlob((blob) => {
+      canvasRef.current.toBlob(async (blob) => {
         if (blob) {
           console.log('Blob created:', URL.createObjectURL(blob));
-          saveCurrentCapture(blob);
+          const uniqueId = await saveCurrentCapture(blob);
+
+          const url = new URL(window.location.href);
+          const newPath =  url.origin + "/photo" + "/" + uniqueId;
+
+          setCaptureId(newPath);
+
+          console.log("newPath", newPath);
+
         } else {
           console.error('Failed to create blob from canvas');
         }
@@ -320,7 +331,7 @@ const BackgroundSegmentation = () => {
 
   useEffect(() => {
     console.log("currentScene", currentScene);
-  },[currentScene])
+  },[currentScene]);
 
   useEffect(() => {
     if (thumbsUp) {
@@ -428,6 +439,7 @@ const BackgroundSegmentation = () => {
             {triggerCounter !== 0 ? triggerCounter : '¡Foto Tomada!'}
           </div>
         )}
+        {captureId && <QRCode value={captureId} size={500} />}
       </div>
       </div>
       
