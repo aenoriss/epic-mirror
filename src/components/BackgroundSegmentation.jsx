@@ -339,13 +339,13 @@ const BackgroundSegmentation = () => {
         if(isCaptureActive == false){
           setIsCaptureActive(true);
         }
-      }, 3000);
+      }, 1500);
     } else if(indexUp){
       timerRef.current = setTimeout(() => {
         if(isCaptureActive == false){
           changeScene();
         }
-      }, 3000);
+      }, 1500);
     } else {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
