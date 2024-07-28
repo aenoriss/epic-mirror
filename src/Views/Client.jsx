@@ -46,10 +46,22 @@ function Client() {
 
   return (
     <div className="flex flex-col items-center justify-center w-full h-full">
-      <div>
-        <button onClick={handleDownload} disabled={!downloadURL}>Descargar Foto</button>
-        <button onClick={handleShare} disabled={!downloadURL}>Compartir</button>
-      </div>
+      <div class="flex space-x-4">
+      <button 
+        onClick={handleDownload} 
+        disabled={!downloadURL}
+        class="px-4 py-2 font-semibold text-white bg-blue-500 rounded-lg shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-600 active:bg-blue-700"
+      >
+        Descargar Foto
+      </button>
+      <button 
+        onClick={handleShare} 
+        disabled={!downloadURL}
+        class="px-4 py-2 font-semibold text-white bg-green-500 rounded-lg shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-600 active:bg-green-700"
+      >
+        Compartir
+      </button>
+    </div>
       <h1>CLIENT {id}</h1>
       {downloadURL ? (
         <img src={downloadURL} alt="Downloaded" className="max-w-full h-auto" />
