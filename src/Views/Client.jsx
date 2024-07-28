@@ -17,7 +17,7 @@ function Client() {
   }, [id]);
 
   const handleDownload = async () => {
-    if (imageUrl) {
+    if (downloadURL) {
       try {
         // Fetch the image as a blob
         const response = await fetch(imageUrl);
