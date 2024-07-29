@@ -202,6 +202,7 @@ const BackgroundSegmentation = () => {
       await segmenter.initialize();
 
       segmenter.setOptions({
+        modelSelection: 0,
         selfieMode: true,
       });
 
