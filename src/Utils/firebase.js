@@ -36,7 +36,7 @@ export const saveCurrentCapture = async (blob) => {
   }
 };
 
-export const getImageBlob = async (imagePath) => {
+export const getVideoBlob = async (imagePath) => {
   try {
  
     // Get a reference from the URL

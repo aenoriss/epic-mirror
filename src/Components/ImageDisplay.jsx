@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { getImageBlob } from '../Utils/firebase';
+import { getVideoBlob } from '../Utils/firebase';
 import { saveAs } from "file-saver";
 
 const VideoDisplay = ({downloadURL, id}) => {
@@ -9,7 +9,7 @@ const VideoDisplay = ({downloadURL, id}) => {
   useEffect(() => {
     const blobCreation = async (downloadURL) => {
       try {
-        const blob = await getImageBlob(downloadURL);
+        const blob = await getVideoBlob(downloadURL);
         setVideoBlob(blob);
       } catch (error) {
         console.error("Error fetching video blob:", error);
