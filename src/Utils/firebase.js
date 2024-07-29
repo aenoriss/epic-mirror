@@ -19,7 +19,7 @@ export const storage = getStorage(app);
 
 export const saveCurrentCapture = async (blob) => {
   try {
-    const storageRef = sRef(storage, 'captures/' + Date.now() + '.png');
+    const storageRef = sRef(storage, 'captures/' + Date.now() + '.webm');
     const snapshot = await uploadBytes(storageRef, blob);
     console.log('Uploaded a blob or file!');
     

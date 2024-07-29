@@ -15,7 +15,7 @@ const router = createBrowserRouter([
         element: <App/>
     },
     {
-        path: "/photo/:id",
+        path: "/video/:id",
         element: <Client/>
     },
 ]);

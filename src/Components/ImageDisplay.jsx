@@ -1,41 +1,53 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { getImageBlob } from '../Utils/firebase';
 import { saveAs } from "file-saver";
 
-const ImageDisplay = ({downloadURL, id}) => {
-  const [imageBlob, setImageBlob] = useState(null);
+const VideoDisplay = ({downloadURL, id}) => {
+  const [videoBlob, setVideoBlob] = useState(null);
+  const videoRef = useRef(null);
 
   useEffect(() => {
     const blobCreation = async (downloadURL) => {
-      const blob = await getImageBlob(downloadURL);
-      setImageBlob(blob);
+      try {
+        const blob = await getImageBlob(downloadURL);
+        setVideoBlob(blob);
+      } catch (error) {
+        console.error("Error fetching video blob:", error);
+      }
     };
 
-    downloadURL && blobCreation(downloadURL);
-
+    if (downloadURL) {
+      blobCreation(downloadURL);
+    }
   }, [downloadURL]);
 
+  useEffect(() => {
+    if (videoRef.current && videoBlob) {
+      videoRef.current.src = URL.createObjectURL(videoBlob);
+    }
+  }, [videoBlob]);
+
   const handleDownload = async () => {
-    if (downloadURL) {
+    if (downloadURL && videoBlob) {
       try {
-        saveAs(imageBlob, `sigmaAgro_photo-${id}.png`);
+        saveAs(videoBlob, `sigmaAgro_video-${id}.webm`);
       } catch (error) {
-        console.error("Error downloading the image:", error);
+        console.error("Error downloading the video:", error);
       }
     }
   };
 
   const handleShare = async () => {
-    if (downloadURL) {
+    if (downloadURL && videoBlob) {
       try {
         if (navigator.share) {
           await navigator.share({
             files: [
-              new File([imageBlob], `sigmaAgro_photo-${id}.png`, {
-                type: "image/png",
+              new File([videoBlob], `sigmaAgro_video-${id}.webm`, {
+                type: videoBlob.type,
               }),
             ],
-            title: "Check out this image!",
+            title: "Check out this video!",
             text: "Shared from SigmaAgro",
           });
         } else {
@@ -43,37 +55,47 @@ const ImageDisplay = ({downloadURL, id}) => {
           // Implement a fallback sharing method here
         }
       } catch (error) {
-        console.error("Error sharing the image:", error);
+        console.error("Error sharing the video:", error);
       }
     }
   };
 
   return (
     <div className="flex flex-col items-center justify-center w-full h-full">
-      <div className="flex space-x-4">
+      <div className="flex space-x-4 mb-4">
         <button
           onClick={handleDownload}
-          disabled={!downloadURL && !imageBlob}
+          disabled={!downloadURL || !videoBlob}
           className="px-4 py-2 font-semibold text-white bg-blue-500 rounded-lg shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-600 active:bg-blue-700"
         >
-          Descargar Foto
+          Descargar Video
         </button>
         <button
           onClick={handleShare}
-          disabled={!downloadURL && !imageBlob}
+          disabled={!downloadURL || !videoBlob}
           className="px-4 py-2 font-semibold text-white bg-green-500 rounded-lg shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-600 active:bg-green-700"
         >
           Compartir
         </button>
       </div>
-      <h1>CLIENT {id}</h1>
+      <h1 className="text-xl font-bold mb-4">CLIENT {id}</h1>
       {downloadURL ? (
-        <img src={downloadURL} alt="Downloaded" className="max-w-full h-auto" />
+        <video 
+          ref={videoRef}
+          className="max-w-full h-auto"
+          autoPlay 
+          loop 
+          muted 
+          playsInline
+          controls
+        >
+          Your browser does not support the video tag.
+        </video>
       ) : (
-        <p>Loading image...</p>
+        <p>Loading video...</p>
       )}
     </div>
   );
 };
 
-export default ImageDisplay;
+export default VideoDisplay;
