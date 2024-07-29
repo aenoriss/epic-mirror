@@ -103,8 +103,9 @@ const BackgroundSegmentation = () => {
 
       //Initializes MediaRecorder and assigns Media Stream
       mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: "video/webm",
-      }); //webm output
+        mimeType: 'video/webm; codecs=vp9',
+        videoBitsPerSecond: 8000000 // 8 Mbps for high quality
+      });
 
       //Pushes frame to Video Chunk (Video Clip)
       mediaRecorderRef.current.ondataavailable = (event) => {
@@ -295,18 +296,14 @@ const BackgroundSegmentation = () => {
 
   const updateCanvasSize = () => {
     if (videoRef.current && canvasRef.current) {
-      const videoAspectRatio =
-        videoRef.current.videoWidth / videoRef.current.videoHeight;
-      const screenHeight = window.innerHeight;
-
-      const canvasHeight = screenHeight;
-      const canvasWidth = screenHeight * videoAspectRatio;
-
-      const pixelRatio = window.devicePixelRatio || 1;
-      canvasRef.current.width = canvasWidth * pixelRatio;
-      canvasRef.current.height = canvasHeight * pixelRatio;
-      canvasRef.current.style.width = `${canvasWidth}px`;
-      canvasRef.current.style.height = `${canvasHeight}px`;
+      const aspectRatio = 9 / 16; // For vertical 1080p
+      const width = 1080;
+      const height = width / aspectRatio;
+  
+      canvasRef.current.width = width;
+      canvasRef.current.height = height;
+      canvasRef.current.style.width = `${width}px`;
+      canvasRef.current.style.height = `${height}px`;
     }
   };
 
@@ -323,13 +320,13 @@ const BackgroundSegmentation = () => {
     canvasCtx.clearRect(0, 0, width, height);
 
     // Draw the segmentation mask (already inverted due to selfieMode: true)
-    canvasCtx.drawImage(results.segmentationMask, 0, 0, width, height);
+    canvasCtx.drawImage(results.segmentationMask, 0, 0, 3413, height);
 
     // Set composite operation to only draw where the mask is
     canvasCtx.globalCompositeOperation = "source-in";
 
     // Draw the camera feed (now flipped)
-    canvasCtx.drawImage(results.image, 0, 0, width, height);
+    canvasCtx.drawImage(results.image, 0, 0, 3413, height);
 
     // Reset the transform
     canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
