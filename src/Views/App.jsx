@@ -1,4 +1,4 @@
-import BackgroundSegmentation from '../components/BackgroundSegmentation';
+import BackgroundSegmentation from '../Components/BackgroundSegmentation';
 
 function App() {
   return (

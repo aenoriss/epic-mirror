@@ -27,7 +27,7 @@ export const saveCurrentCapture = async (blob) => {
     console.log("downloadURL", downloadURL);
 
     const currentCaptureRef = ref(db, 'captures');
-    const uniqueId = push(currentCaptureRef, downloadURL).key;
+    const uniqueId = push(currentCaptureRef, {url: downloadURL, status: "pending"}).key;
 
     return uniqueId;
 
@@ -52,16 +52,35 @@ export const getImageBlob = async (imagePath) => {
   }
 }
 
-export const getImgUrl = async (id) => {
+export const getImgData = async (id) => {
   try {
     const captureRef = ref(db, 'captures/' + id);
     const snapshot = await get(captureRef);
 
     if(snapshot.exists()) {
-      return snapshot.val();
+      const data = snapshot.val();
+
+      console.log("PHOTO URL:", data["url"]);
+      return data;
     } else {
       return null;
     }
+
+  } catch (error) {
+    console.error('Error uploading to Firebase Storage:', error);
+  }
+};
+
+export const validatePhoto = async (formData, photoId) => {
+  try {
+
+    //Save User Data
+    const userRef = ref(db, 'forms/' + photoId);
+    set(userRef, formData);
+
+    //Update Photo Status
+    const captureRef = ref(db, 'captures/' + photoId);
+    update(captureRef, {status: "validated"});
 
   } catch (error) {
     console.error('Error uploading to Firebase Storage:', error);
