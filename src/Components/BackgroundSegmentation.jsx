@@ -202,7 +202,6 @@ const BackgroundSegmentation = () => {
       await segmenter.initialize();
 
       segmenter.setOptions({
-        modelSelection: 1,
         selfieMode: true,
       });
 
@@ -311,30 +310,49 @@ const BackgroundSegmentation = () => {
     if (!canvasRef.current || !backgroundVideoRef.current) {
       return;
     }
-
+  
     const canvasCtx = canvasRef.current.getContext("2d");
-    const width = canvasRef.current.width;
-    const height = canvasRef.current.height;
-
+  
+    const canvasWidth = canvasRef.current.width;
+    const canvasHeight = canvasRef.current.height;
+  
+    const imageWidth = results.image.width;
+    const imageHeight = results.image.height;
+  
     canvasCtx.save();
-    canvasCtx.clearRect(0, 0, width, height);
-
+    canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+  
+    // Calculate scale to fit height
+    const scale = canvasHeight / imageHeight;
+    const scaledWidth = imageWidth * scale;
+  
+    // Calculate x-offset to center horizontally
+    const xOffset = (canvasWidth - scaledWidth) / 2;
+  
     // Draw the segmentation mask (already inverted due to selfieMode: true)
-    canvasCtx.drawImage(results.segmentationMask, 0, 0, 3413, height);
-
+    canvasCtx.drawImage(
+      results.segmentationMask, 
+      xOffset, 0, 
+      scaledWidth, canvasHeight
+    );
+  
     // Set composite operation to only draw where the mask is
     canvasCtx.globalCompositeOperation = "source-in";
-
+  
     // Draw the camera feed (now flipped)
-    canvasCtx.drawImage(results.image, 0, 0, 3413, height);
-
+    canvasCtx.drawImage(
+      results.image,  // Changed from results.segmentationMask to results.image
+      xOffset, 0, 
+      scaledWidth, canvasHeight
+    );
+  
     // Reset the transform
     canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
-
+  
     // Draw the background video behind everything
     canvasCtx.globalCompositeOperation = "destination-over";
-    canvasCtx.drawImage(backgroundVideoRef.current, 0, 0, width, height);
-
+    canvasCtx.drawImage(backgroundVideoRef.current, 0, 0, canvasWidth, canvasHeight);
+  
     canvasCtx.restore();
   }, []);
 
