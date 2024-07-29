@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getImageBlob } from '../Utils/firebase';
+import { saveAs } from "file-saver";
 
 const ImageDisplay = ({downloadURL, id}) => {
   const [imageBlob, setImageBlob] = useState(null);
