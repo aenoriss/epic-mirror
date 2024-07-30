@@ -4,14 +4,22 @@ import "@tensorflow/tfjs-core";
 import "@tensorflow/tfjs-backend-webgl";
 import { FilesetResolver, GestureRecognizer } from "@mediapipe/tasks-vision";
 import QRCode from "qrcode.react";
-import countryside from "../assets/countryside.mp4";
-import interview from "../assets/interview.mp4";
 import { saveCurrentCapture } from "../Utils/firebase";
+
+//Assets
+import Logo from "../assets/logo.png";
+
+import CountrysideBackground from "../assets/countryside/background.mp4";
+import CountrysideLayer from "../assets/countryside/layer_webm.webm";
+
+import InterviewBackground from "../assets/interview/background.mp4";
 
 const BackgroundSegmentation = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const backgroundVideoRef = useRef(null);
+  const layerVideoRef = useRef(null);
+  const logoRef = useRef(null);
   const overlayRef = useRef(null);
   const segmentationPromiseRef = useRef(null);
   const segmenterRef = useRef(null);
@@ -38,13 +46,29 @@ const BackgroundSegmentation = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    //Setting Background Video
     if (backgroundVideoRef.current) {
       currentScene == 1
-        ? (backgroundVideoRef.current.src = countryside)
-        : (backgroundVideoRef.current.src = interview);
+        ? (backgroundVideoRef.current.src = CountrysideBackground)
+        : (backgroundVideoRef.current.src = InterviewBackground);
       backgroundVideoRef.current.loop = true;
       backgroundVideoRef.current.muted = true;
       backgroundVideoRef.current.play().catch((error) => {});
+    }
+
+    //Setting Layer Video
+    if (currentScene == 1) {
+      if (layerVideoRef.current) {
+        layerVideoRef.current.src = CountrysideLayer;
+        layerVideoRef.current.loop = true;
+        layerVideoRef.current.muted = true;
+        layerVideoRef.current.play().catch((error) => {});
+      }
+    }
+
+    //Setting Logo Image
+    if (logoRef.current) {
+      logoRef.current.src = Logo;
     }
 
     return () => {
@@ -103,8 +127,8 @@ const BackgroundSegmentation = () => {
 
       //Initializes MediaRecorder and assigns Media Stream
       mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: 'video/webm; codecs=vp9',
-        videoBitsPerSecond: 8000000 // 8 Mbps for high quality
+        mimeType: "video/webm; codecs=vp9",
+        videoBitsPerSecond: 8000000, // 8 Mbps for high quality
       });
 
       //Pushes frame to Video Chunk (Video Clip)
@@ -299,7 +323,7 @@ const BackgroundSegmentation = () => {
       const aspectRatio = 9 / 16; // For vertical 1080p
       const width = 1080;
       const height = width / aspectRatio;
-  
+
       canvasRef.current.width = width;
       canvasRef.current.height = height;
       canvasRef.current.style.width = `${width}px`;
@@ -311,51 +335,72 @@ const BackgroundSegmentation = () => {
     if (!canvasRef.current || !backgroundVideoRef.current) {
       return;
     }
-  
+
     const canvasCtx = canvasRef.current.getContext("2d");
-  
+
     const canvasWidth = canvasRef.current.width;
     const canvasHeight = canvasRef.current.height;
-  
+
     const imageWidth = results.image.width;
     const imageHeight = results.image.height;
-  
+
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
-  
+
     // Calculate scale to fit height
     const scale = canvasHeight / imageHeight;
     const scaledWidth = imageWidth * scale;
-  
+
     // Calculate x-offset to center horizontally
     const xOffset = (canvasWidth - scaledWidth) / 2;
-  
+
     // Draw the segmentation mask (already inverted due to selfieMode: true)
     canvasCtx.drawImage(
-      results.segmentationMask, 
-      xOffset, 0, 
-      scaledWidth, canvasHeight
+      results.segmentationMask,
+      xOffset,
+      0,
+      scaledWidth,
+      canvasHeight
     );
-  
+
     // Set composite operation to only draw where the mask is
     canvasCtx.globalCompositeOperation = "source-in";
-  
+
     // Draw the camera feed (now flipped)
     canvasCtx.drawImage(
-      results.image,  // Changed from results.segmentationMask to results.image
-      xOffset, 0, 
-      scaledWidth, canvasHeight
+      results.image, // Changed from results.segmentationMask to results.image
+      xOffset,
+      0,
+      scaledWidth,
+      canvasHeight
     );
-  
+
     // Reset the transform
     canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
-  
+
     // Draw the background video behind everything
     canvasCtx.globalCompositeOperation = "destination-over";
-    canvasCtx.drawImage(backgroundVideoRef.current, 0, 0, canvasWidth, canvasHeight);
-  
+    canvasCtx.drawImage(
+      backgroundVideoRef.current,
+      0,
+      0,
+      canvasWidth,
+      canvasHeight
+    );
+
+    // Draw Layer
+
+    if(currentScene == 1){
+      canvasCtx.globalCompositeOperation = "source-over";
+      canvasCtx.drawImage(layerVideoRef.current, 0, 0, canvasWidth, canvasHeight);
+    }
+
+    // Draw Logo
+    canvasCtx.globalCompositeOperation = "source-over";
+    canvasCtx.drawImage(logoRef.current, 0, 0, canvasWidth, canvasHeight);
+
     canvasCtx.restore();
-  }, []);
+  }, [currentScene]);
 
   const sendToSegmenter = useCallback(async () => {
     if (
@@ -431,6 +476,7 @@ const BackgroundSegmentation = () => {
     if (isSegmenting) {
       animationFrameRef.current = requestAnimationFrame(sendToSegmenter);
     }
+
   }, [
     isSegmenting,
     onResults,
@@ -563,6 +609,22 @@ const BackgroundSegmentation = () => {
         playsInline
         autoPlay
       />
+
+      <video
+        ref={layerVideoRef}
+        className="hidden"
+        loop
+        muted
+        playsInline
+        autoPlay
+      />
+
+      <img
+        ref={logoRef}
+        src={Logo}
+        alt="Logo"
+        className="hidden"
+    />    
 
       <div className="h-full flex items-center justify-center absolute top-0 left-1/2 transform -translate-x-1/2">
         <canvas
