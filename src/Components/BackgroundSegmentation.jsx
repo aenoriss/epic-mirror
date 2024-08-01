@@ -169,6 +169,13 @@ const BackgroundSegmentation = () => {
           mediaRecorderRef.current.stop();
         }
       }, 5000);
+
+      //Erase QR after 20 sec
+      setTimeout(() => {
+        console.log("QR DELETED!")
+        setCaptureId(null);
+      }, 20000);
+
     }
   }, []);
 
@@ -199,8 +206,6 @@ const BackgroundSegmentation = () => {
 
     if (isCaptureActive == true) {
       console.log("Capture Active");
-
-      //Stop gesture recognition
 
       //Start Countdown
       runCountdown();
@@ -396,8 +401,8 @@ const BackgroundSegmentation = () => {
     }
 
     // Draw Logo
-    canvasCtx.globalCompositeOperation = "source-over";
-    canvasCtx.drawImage(logoRef.current, 0, 0, canvasWidth, canvasHeight);
+    // canvasCtx.globalCompositeOperation = "source-over";
+    // canvasCtx.drawImage(logoRef.current, 0, 0, canvasWidth, canvasHeight);
 
     canvasCtx.restore();
   }, [currentScene]);
@@ -567,7 +572,7 @@ const BackgroundSegmentation = () => {
         </div>
       )}
 
-      {!isCaptureActive && (
+      {!isSegmenting && (
         <button
           onClick={
             loadModels
