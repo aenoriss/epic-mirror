@@ -401,8 +401,8 @@ const BackgroundSegmentation = () => {
     }
 
     // Draw Logo
-    // canvasCtx.globalCompositeOperation = "source-over";
-    // canvasCtx.drawImage(logoRef.current, 0, 0, canvasWidth, canvasHeight);
+    canvasCtx.globalCompositeOperation = "source-over";
+    canvasCtx.drawImage(logoRef.current, 0, 0, canvasWidth, canvasHeight);
 
     canvasCtx.restore();
   }, [currentScene]);
