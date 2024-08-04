@@ -174,7 +174,7 @@ const BackgroundSegmentation = () => {
       setTimeout(() => {
         console.log("QR DELETED!")
         setCaptureId(null);
-      }, 20000);
+      }, 60000);
 
     }
   }, []);
