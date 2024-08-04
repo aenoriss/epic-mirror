@@ -239,7 +239,8 @@ const BackgroundSegmentation = () => {
         await sleep(1000);
         setTriggerCounter(i);
       }
-
+      
+      await sleep(1000);
       setTriggerCounter(5);
 
       setUIStage(0);
@@ -261,7 +262,7 @@ const BackgroundSegmentation = () => {
 
     return () => {
       //When Capture finishes restart countdown
-      setTriggerCounter(4);
+      setTriggerCounter(5);
     };
   }, [isCaptureActive]);
 
