@@ -5,13 +5,14 @@ import "@tensorflow/tfjs-backend-webgl";
 import { FilesetResolver, GestureRecognizer } from "@mediapipe/tasks-vision";
 import QRCode from "qrcode.react";
 import { saveCurrentCapture } from "../Utils/firebase";
+import Controls from "./Controls";
+import RecordingBar from "./RecordingBar";
+import StyledQRCode from "./StyledQRCode";
 
 //Assets
 import Logo from "../assets/logo.png";
-
 import CountrysideBackground from "../assets/countryside/background.mp4";
 import CountrysideLayer from "../assets/countryside/layer_webm.webm";
-
 import InterviewBackground from "../assets/interview/background.mp4";
 
 const BackgroundSegmentation = () => {
@@ -26,24 +27,24 @@ const BackgroundSegmentation = () => {
   const gestureRecognizerRef = useRef(null);
   const animationFrameRef = useRef(null);
   const timerRef = useRef(null);
-
-  //Video Recording
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
 
   const [loadModels, setLoadModels] = useState(false);
   const [isSegmenting, setIsSegmenting] = useState(false);
-
   const [thumbsUp, setThumbsUp] = useState(null);
   const [indexUp, setIndexUp] = useState(null);
   const [isCaptureActive, setIsCaptureActive] = useState(false);
-
   const [currentScene, setCurrentScene] = useState(1);
   const [captureId, setCaptureId] = useState(null);
-
-  const [triggerCounter, setTriggerCounter] = useState(4);
+  const [triggerCounter, setTriggerCounter] = useState(5);
   const [loadingState, setLoadingState] = useState("initial");
   const [error, setError] = useState(null);
+  const [circleUI, setCircleUI] = useState(false);
+  const [leftControlValue, setLeftControlValue] = useState(0);
+  const [rightControlValue, setRightControlValue] = useState(0);
+  const [UIStage, setUIStage] = useState(1);
+
 
   useEffect(() => {
     //Setting Background Video
@@ -80,6 +81,64 @@ const BackgroundSegmentation = () => {
   }, [currentScene]);
 
   useEffect(() => {
+    let intervalId;
+    const fillDuration = 1500; 
+    const updateInterval = 50;
+    const incrementAmount = fillDuration / updateInterval;
+
+    if (thumbsUp || indexUp) {
+      intervalId = setInterval(() => {
+        if (thumbsUp) {
+          setLeftControlValue(prev => Math.min(100, prev + incrementAmount));
+        }
+        if (indexUp) {
+          setRightControlValue(prev => Math.min(100, prev + incrementAmount));
+        }
+      }, updateInterval);
+
+    } else {
+      setLeftControlValue(0);
+      setRightControlValue(0);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [thumbsUp, indexUp]);
+
+  useEffect(() => {
+    console.log("rightControlValue", rightControlValue);
+  }, [rightControlValue]);
+
+  useEffect(() => {
+    if (thumbsUp) {
+      timerRef.current = setTimeout(() => {
+        if (!isCaptureActive) {
+          setIsCaptureActive(true);
+        }
+      }, 1500);
+    } else if (indexUp) {
+      timerRef.current = setTimeout(() => {
+        if (!isCaptureActive) {
+          changeScene();
+        }
+      }, 1500);
+    } else {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [thumbsUp, indexUp]);
+
+  useEffect(() => {
     const updateOverlaySize = () => {
       if (canvasRef.current && overlayRef.current) {
         const { width, height } = canvasRef.current.getBoundingClientRect();
@@ -98,26 +157,6 @@ const BackgroundSegmentation = () => {
     window.addEventListener("resize", updateCanvasSize);
     return () => window.removeEventListener("resize", updateCanvasSize);
   }, []);
-
-  // const createBlobFromCanvas = useCallback(() => {
-  //   if (canvasRef.current) {
-  //     canvasRef.current.toBlob(async (blob) => {
-  //       if (blob) {
-  //         console.log("Blob created:", URL.createObjectURL(blob));
-  //         const uniqueId = await saveCurrentCapture(blob);
-
-  //         const url = new URL(window.location.href);
-  //         const newPath = url.origin + "/photo" + "/" + uniqueId;
-
-  //         setCaptureId(newPath);
-
-  //         console.log("newPath", newPath);
-  //       } else {
-  //         console.error("Failed to create blob from canvas");
-  //       }
-  //     }, "image/png");
-  //   }
-  // }, []);
 
   const startRecording = useCallback(() => {
     //Setups Media Recording
@@ -170,12 +209,6 @@ const BackgroundSegmentation = () => {
         }
       }, 5000);
 
-      //Erase QR after 20 sec
-      setTimeout(() => {
-        console.log("QR DELETED!")
-        setCaptureId(null);
-      }, 60000);
-
     }
   }, []);
 
@@ -185,23 +218,44 @@ const BackgroundSegmentation = () => {
     const runCountdown = async () => {
       console.log(" COUNTDOWN CALLED");
 
+      setUIStage(1);
+
       // Countdown starts
-      for (let i = 4; i >= 0; i--) {
-        await sleep(2000);
+      for (let i = 5; i >= 0; i--) {
+        await sleep(1000);
         setTriggerCounter(i);
       }
 
+      setTriggerCounter(5);
+
+      setCircleUI(true);
+      await sleep(2000);
+
       // Start recording
+      setUIStage(2);
+
+      setCircleUI(false);
+
       startRecording();
 
       // Wait for 5 seconds of recording
-      await sleep(5000);
+      for (let i = 5; i >= 0; i--) {
+        await sleep(1000);
+        setTriggerCounter(i);
+      }
 
-      //Experience Restarts
-      await sleep(2000);
-
-      //Experience Restarts
-      setIsCaptureActive(false);
+      setTriggerCounter(5);
+      
+      setUIStage(0);
+      setCircleUI(true);
+    
+      //experience restarts
+      setTimeout(() => {
+        console.log("QR DELETED!")
+        setCaptureId(null);
+        setCircleUI(false);
+        setIsCaptureActive(false);
+      }, 60000);
     };
 
     if (isCaptureActive == true) {
@@ -499,32 +553,6 @@ const BackgroundSegmentation = () => {
   }, [currentScene]);
 
   useEffect(() => {
-    if (thumbsUp) {
-      timerRef.current = setTimeout(() => {
-        if (isCaptureActive == false) {
-          setIsCaptureActive(true);
-        }
-      }, 1500);
-    } else if (indexUp) {
-      timerRef.current = setTimeout(() => {
-        if (isCaptureActive == false) {
-          changeScene();
-        }
-      }, 1500);
-    } else {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    }
-
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, [thumbsUp, indexUp]);
-
-  useEffect(() => {
     if (loadingState === "ready" && isSegmenting) {
       sendToSegmenter();
     }
@@ -557,18 +585,6 @@ const BackgroundSegmentation = () => {
       {error && (
         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-red-500 z-30">
           {error}
-        </div>
-      )}
-
-      {thumbsUp && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-red-500 text-white rounded z-20">
-          Thumbs up
-        </div>
-      )}
-
-      {indexUp && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-red-500 text-white rounded z-20">
-          indexUp
         </div>
       )}
 
@@ -631,7 +647,7 @@ const BackgroundSegmentation = () => {
         className="hidden"
     />    
 
-      <div className="h-full flex items-center justify-center absolute top-0 left-1/2 transform -translate-x-1/2">
+      <div className="w-full h-full flex items-center justify-center absolute top-0 left-1/2 transform -translate-x-1/2">
         <canvas
           ref={canvasRef}
           className="absolute top-0 left-1/2 transform -translate-x-1/2 z-10"
@@ -641,20 +657,12 @@ const BackgroundSegmentation = () => {
           ref={overlayRef}
           className="w-full h-full flex items-center justify-center pointer-events-none z-50"
         >
-          {isCaptureActive && (
-            <div
-              className="text-white text-9xl font-bold text-center"
-              style={{
-                textShadow: "0 0 10px rgba(0,0,0,0.5)",
-                transition: "opacity 0.3s ease-in-out",
-                opacity: triggerCounter >= 0 ? 1 : 0,
-              }}
-            >
-              {triggerCounter !== 0 ? triggerCounter : "¡Foto Tomada!"}
-            </div>
-          )}
-          {captureId && <QRCode value={captureId} size={500} />}
+        {circleUI && <StyledQRCode stage={UIStage} value={captureId} />}
         </div>
+        {isSegmenting && <div className="absolute bottom-0 w-full h-auto z-50">
+          {!isCaptureActive && <Controls leftControlValue={leftControlValue} rightControlValue={rightControlValue} />}
+          {isCaptureActive && UIStage != 0 && <RecordingBar stage={UIStage} countdown={triggerCounter}/>}
+        </div>}
       </div>
     </div>
   );
