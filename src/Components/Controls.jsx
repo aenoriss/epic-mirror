@@ -42,14 +42,14 @@ const Controls = ({ leftControlValue, rightControlValue }) => {
                     className="w-40 h-40 rounded-full flex items-center justify-center overflow-hidden transition-shadow duration-300 mr-4"
                     aria-label="Pulgar Arriba control"
                     style={{
-                        background: `linear-gradient(to top, #3b82f6 ${clampedLeftValue}%, transparent ${clampedLeftValue}%)`,
-                        boxShadow: leftAuraActive ? '0 0 30px 15px rgba(59, 130, 246, 0.8)' : 'none',
+                        background: `linear-gradient(to top, #26C1D8 ${clampedLeftValue}%, transparent ${clampedLeftValue}%)`,
+                        boxShadow: leftAuraActive ? '0 0 30px 15px rgba(38, 193, 216, 0.8)' : 'none',
                     }}
                 >
                     <img src={ThumbsUpImage} alt="Pulgar Arriba" className="w-full h-full object-cover" />
                 </button>
                 <div className="text-left">
-                    <p className="text-[#00E5FF] text-[200%] font-bold leading-tight">PULGAR ARRIBA</p>
+                    <p className="text-[#26C1D8] text-[200%] font-bold leading-tight">PULGAR ARRIBA</p>
                     <p className="text-white text-[180%]">iniciar grabación</p>
                 </div>
             </div>
@@ -57,15 +57,15 @@ const Controls = ({ leftControlValue, rightControlValue }) => {
             {/* Right button (Index Up) */}
             <div className="absolute right-[5%] top-1/2 -translate-y-1/2 flex items-center">
                 <div className="text-right mr-4">
-                    <p className="text-[#00E5FF] text-[200%] font-bold leading-tight">INDICE ARRIBA</p>
+                    <p className="text-[#26C1D8] text-[200%] font-bold leading-tight">INDICE ARRIBA</p>
                     <p className="text-white text-[180%]">cambiar escena</p>
                 </div>
                 <button 
                     className="w-40 h-40 rounded-full flex items-center justify-center overflow-hidden transition-shadow duration-300"
                     aria-label="Indice Arriba control"
                     style={{
-                        background: `linear-gradient(to top, #3b82f6 ${clampedRightValue}%, transparent ${clampedRightValue}%)`,
-                        boxShadow: rightAuraActive ? '0 0 30px 15px rgba(59, 130, 246, 0.8)' : 'none',
+                        background: `linear-gradient(to top, #26C1D8 ${clampedRightValue}%, transparent ${clampedRightValue}%)`,
+                        boxShadow: rightAuraActive ? '0 0 30px 15px rgba(38, 193, 216, 0.8)' : 'none',
                     }}
                 >
                     <img src={IndexUpImage} alt="Indice Arriba" className="w-full h-full object-cover" />

@@ -16,8 +16,11 @@ const StyledQRCode = ({ value, stage, size = 700 }) => {
     <div className="relative w-screen h-screen flex items-center justify-center">
       <div className="relative" style={{ width: size, height: size }}>
         <div
-          className="absolute inset-0 bg-sky-400 rounded-full flex items-center justify-center"
-          style={{ padding: size * 0.1 }} // 10% padding
+          className="absolute inset-0 rounded-full flex items-center justify-center"
+          style={{ 
+            backgroundColor: "#26C1D8",
+            padding: size * 0.1 
+          }}
         >
           {stage == 0 ? (
             <QRCode
