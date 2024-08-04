@@ -161,9 +161,10 @@ const BackgroundSegmentation = () => {
     if (canvasRef.current) {
       const stream = canvasRef.current.captureStream(60); // 60 FPS
   
+      // Use MediaRecorder with MP4 (MPEG-4 Part 14) container
       mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: "video/mp4",
-        videoBitsPerSecond: 0 
+        mimeType: "video/mp4; codecs=mp4v.20.8, mp4a.40.2",
+        videoBitsPerSecond: 0 // Set to 0 for no compression
       });
   
       mediaRecorderRef.current.ondataavailable = (event) => {
