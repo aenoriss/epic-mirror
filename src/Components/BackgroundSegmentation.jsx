@@ -158,45 +158,33 @@ const BackgroundSegmentation = () => {
   }, []);
 
   const startRecording = useCallback(() => {
-    //Setups Media Recording
     if (canvasRef.current) {
-      //Video stream is created from the canvas (Canvas API)
-      const stream = canvasRef.current.captureStream(60); //30 FPS
-
-      //Initializes MediaRecorder and assigns Media Stream
+      const stream = canvasRef.current.captureStream(60); // 60 FPS
+  
       mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: "video/webm; codecs=vp9",
-        videoBitsPerSecond: 8000000, // 8 Mbps for high quality
+        mimeType: "video/mp4",
+        videoBitsPerSecond: 0 
       });
-
-      //Pushes frame to Video Chunk (Video Clip)
+  
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunksRef.current.push(event.data);
         }
       };
-
-      //Async method triggered when the streaming stops.
+  
       mediaRecorderRef.current.onstop = async () => {
-        //Creates videoclip from chunk
-        const blob = new Blob(chunksRef.current, { type: "video/webm" });
-
-        //Cleans chunksRef
+        const blob = new Blob(chunksRef.current, { type: "video/mp4" });
         chunksRef.current = [];
-
-        //Saves the video in storage and gets the ID.
+  
         const uniqueId = await saveCurrentCapture(blob);
-
-        //Builds the URL to generate the QR Code
+  
         const url = new URL(window.location.href);
         const newPath = url.origin + "/video" + "/" + uniqueId;
         setCaptureId(newPath);
       };
-
-      //Starts the Recording
+  
       mediaRecorderRef.current.start();
-
-      //Stop recording after 5 seconds
+  
       setTimeout(() => {
         if (
           mediaRecorderRef.current &&
@@ -205,7 +193,6 @@ const BackgroundSegmentation = () => {
           mediaRecorderRef.current.stop();
         }
       }, 5000);
-
     }
   }, []);
 

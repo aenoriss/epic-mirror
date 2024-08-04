@@ -43,7 +43,7 @@ const VideoDisplay = ({downloadURL, id}) => {
         if (navigator.share) {
           await navigator.share({
             files: [
-              new File([videoBlob], `sigmaAgro_video-${id}.webm`, {
+              new File([videoBlob], `sigmaAgro_video-${id}.mp4`, {
                 type: videoBlob.type,
               }),
             ],
