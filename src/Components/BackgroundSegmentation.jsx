@@ -159,16 +159,35 @@ const BackgroundSegmentation = () => {
 
   const startRecording = useCallback(() => {
     if (canvasRef.current) {
-      const stream = canvasRef.current.captureStream(30); // Reduced to 30 FPS for better compatibility
+      const stream = canvasRef.current.captureStream(30);
   
-      // Check for supported MIME types
-      const mimeType = MediaRecorder.isTypeSupported('video/mp4; codecs=h264,aac') 
-        ? 'video/mp4; codecs=h264,aac'
-        : 'video/webm; codecs=vp8,opus';
+      // List of MIME types to try, in order of preference
+      const mimeTypes = [
+        'video/mp4; codecs=h264,aac',
+        'video/webm; codecs=h264,opus',
+        'video/webm; codecs=vp9,opus',
+        'video/webm; codecs=vp8,opus'
+      ];
+  
+      let selectedMimeType = null;
+      for (const mimeType of mimeTypes) {
+        if (MediaRecorder.isTypeSupported(mimeType)) {
+          selectedMimeType = mimeType;
+          break;
+        }
+      }
+  
+      if (!selectedMimeType) {
+        console.error('No supported MIME types found');
+        alert('Your browser does not support any of the required video formats. Please try a different browser.');
+        return;
+      }
+  
+      console.log(`Using MIME type: ${selectedMimeType}`);
   
       mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: mimeType,
-        videoBitsPerSecond: 2500000 // 2.5 Mbps for good quality while maintaining reasonable file size
+        mimeType: selectedMimeType,
+        videoBitsPerSecond: 2500000
       });
   
       mediaRecorderRef.current.ondataavailable = (event) => {
@@ -178,8 +197,10 @@ const BackgroundSegmentation = () => {
       };
   
       mediaRecorderRef.current.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: mimeType.split(';')[0] });
+        const blob = new Blob(chunksRef.current, { type: selectedMimeType.split(';')[0] });
         chunksRef.current = [];
+  
+        console.log(`Recorded video MIME type: ${blob.type}`);
   
         const uniqueId = await saveCurrentCapture(blob);
   
@@ -191,15 +212,13 @@ const BackgroundSegmentation = () => {
       mediaRecorderRef.current.start();
   
       setTimeout(() => {
-        if (
-          mediaRecorderRef.current &&
-          mediaRecorderRef.current.state === "recording"
-        ) {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
           mediaRecorderRef.current.stop();
         }
       }, 5000);
     }
   }, []);
+  
   useEffect(() => {
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
