@@ -30,7 +30,8 @@ const VideoDisplay = ({downloadURL, id}) => {
   const handleDownload = async () => {
     if (downloadURL && videoBlob) {
       try {
-        saveAs(videoBlob, `sigmaAgro_video-${id}.webm`);
+        const fileExtension = videoBlob.type.includes('mp4') ? 'mp4' : 'webm';
+        saveAs(videoBlob, `sigmaAgro_video-${id}.${fileExtension}`);
       } catch (error) {
         console.error("Error downloading the video:", error);
       }
@@ -41,12 +42,13 @@ const VideoDisplay = ({downloadURL, id}) => {
     if (downloadURL && videoBlob) {
       try {
         if (navigator.share) {
+          const fileExtension = videoBlob.type.includes('mp4') ? 'mp4' : 'webm';
+          const file = new File([videoBlob], `sigmaAgro_video-${id}.${fileExtension}`, {
+            type: videoBlob.type,
+          });
+          
           await navigator.share({
-            files: [
-              new File([videoBlob], `sigmaAgro_video-${id}.mp4`, {
-                type: videoBlob.type,
-              }),
-            ],
+            files: [file],
             title: "Check out this video!",
             text: "Shared from SigmaAgro",
           });
