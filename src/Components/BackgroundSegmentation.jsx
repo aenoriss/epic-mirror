@@ -159,12 +159,16 @@ const BackgroundSegmentation = () => {
 
   const startRecording = useCallback(() => {
     if (canvasRef.current) {
-      const stream = canvasRef.current.captureStream(60); // 60 FPS
+      const stream = canvasRef.current.captureStream(30); // Reduced to 30 FPS for better compatibility
   
-      // Use MediaRecorder with MP4 (MPEG-4 Part 14) container
+      // Check for supported MIME types
+      const mimeType = MediaRecorder.isTypeSupported('video/mp4; codecs=h264,aac') 
+        ? 'video/mp4; codecs=h264,aac'
+        : 'video/webm; codecs=vp8,opus';
+  
       mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: "video/mp4; codecs=mp4v.20.8, mp4a.40.2",
-        videoBitsPerSecond: 0 // Set to 0 for no compression
+        mimeType: mimeType,
+        videoBitsPerSecond: 2500000 // 2.5 Mbps for good quality while maintaining reasonable file size
       });
   
       mediaRecorderRef.current.ondataavailable = (event) => {
@@ -174,7 +178,7 @@ const BackgroundSegmentation = () => {
       };
   
       mediaRecorderRef.current.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: "video/mp4" });
+        const blob = new Blob(chunksRef.current, { type: mimeType.split(';')[0] });
         chunksRef.current = [];
   
         const uniqueId = await saveCurrentCapture(blob);
@@ -196,7 +200,6 @@ const BackgroundSegmentation = () => {
       }, 5000);
     }
   }, []);
-
   useEffect(() => {
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
