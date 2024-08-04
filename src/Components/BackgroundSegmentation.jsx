@@ -37,7 +37,7 @@ const BackgroundSegmentation = () => {
   const [isCaptureActive, setIsCaptureActive] = useState(false);
   const [currentScene, setCurrentScene] = useState(1);
   const [captureId, setCaptureId] = useState(null);
-  const [triggerCounter, setTriggerCounter] = useState(5);
+  const [triggerCounter, setTriggerCounter] = useState(null);
   const [loadingState, setLoadingState] = useState("initial");
   const [error, setError] = useState(null);
   const [circleUI, setCircleUI] = useState(false);
@@ -109,7 +109,6 @@ const BackgroundSegmentation = () => {
   }, [thumbsUp, indexUp]);
 
   useEffect(() => {
-    console.log("rightControlValue", rightControlValue);
   }, [rightControlValue]);
 
   useEffect(() => {
@@ -186,14 +185,12 @@ const BackgroundSegmentation = () => {
         chunksRef.current = [];
 
         //Saves the video in storage and gets the ID.
-        console.log("Video recorded:", URL.createObjectURL(blob));
         const uniqueId = await saveCurrentCapture(blob);
 
         //Builds the URL to generate the QR Code
         const url = new URL(window.location.href);
         const newPath = url.origin + "/video" + "/" + uniqueId;
         setCaptureId(newPath);
-        console.log("newPath", newPath);
       };
 
       //Starts the Recording
@@ -216,7 +213,6 @@ const BackgroundSegmentation = () => {
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     const runCountdown = async () => {
-      console.log(" COUNTDOWN CALLED");
 
       setUIStage(1);
 
@@ -245,13 +241,12 @@ const BackgroundSegmentation = () => {
       }
 
       setTriggerCounter(5);
-      
+
       setUIStage(0);
       setCircleUI(true);
     
       //experience restarts
       setTimeout(() => {
-        console.log("QR DELETED!")
         setCaptureId(null);
         setCircleUI(false);
         setIsCaptureActive(false);
@@ -259,7 +254,6 @@ const BackgroundSegmentation = () => {
     };
 
     if (isCaptureActive == true) {
-      console.log("Capture Active");
 
       //Start Countdown
       runCountdown();
@@ -271,9 +265,6 @@ const BackgroundSegmentation = () => {
     };
   }, [isCaptureActive]);
 
-  useEffect(() => {
-    console.log("triggerCounter", triggerCounter);
-  }, [triggerCounter]);
 
   const initializeSegmenter = useCallback(async () => {
     try {
@@ -549,10 +540,6 @@ const BackgroundSegmentation = () => {
   };
 
   useEffect(() => {
-    console.log("currentScene", currentScene);
-  }, [currentScene]);
-
-  useEffect(() => {
     if (loadingState === "ready" && isSegmenting) {
       sendToSegmenter();
     }
@@ -663,6 +650,14 @@ const BackgroundSegmentation = () => {
           {!isCaptureActive && <Controls leftControlValue={leftControlValue} rightControlValue={rightControlValue} />}
           {isCaptureActive && UIStage != 0 && <RecordingBar stage={UIStage} countdown={triggerCounter}/>}
         </div>}
+
+        {UIStage === 0 && circleUI && (
+        <div className="absolute bottom-0 left-0 right-0 h-32 flex items-center justify-center text-white text-7xl font-bold z-50">
+          <div className="text-center mt-[-8rem]">
+            ¡Escanea el QR para<br />compartir el video!
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

@@ -22,7 +22,7 @@ const StyledQRCode = ({ value, stage, size = 700 }) => {
             padding: size * 0.1 
           }}
         >
-          {stage == 0 ? (
+          {stage == 0 && value ? (
             <QRCode
               value={value}
               size={size * 0.6}

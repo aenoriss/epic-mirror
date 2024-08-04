@@ -1,13 +1,13 @@
 import React from 'react';
 
 const RecordingBar = ({ stage, countdown }) => {
-    const text = stage == 1 ? "PREPARATE..." : "GRABANDO...";
+    const text = stage === 1 ? "PREPARATE..." : "GRABANDO...";
     
     return (
         <div className="recording-bar w-full h-64 flex items-center justify-center space-x-16">
             <div className="relative w-48 h-48">
                 <svg className="w-full h-full" viewBox="0 0 96 96">
-                    <circle cx="48" cy="48" r="44" fill="#00E5FF" />
+                    <circle cx="48" cy="48" r="44" fill="#26C1D8" />
                     <text 
                         x="50%" 
                         y="50%" 
