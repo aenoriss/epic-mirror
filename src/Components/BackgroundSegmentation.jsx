@@ -29,6 +29,7 @@ const BackgroundSegmentation = () => {
   const timerRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
+  const captureTimeoutRef = useRef(null);
 
   const [loadModels, setLoadModels] = useState(false);
   const [isSegmenting, setIsSegmenting] = useState(false);
@@ -45,29 +46,39 @@ const BackgroundSegmentation = () => {
   const [rightControlValue, setRightControlValue] = useState(0);
   const [UIStage, setUIStage] = useState(1);
 
+  const updateCanvasSize = useCallback(() => {
+    if (videoRef.current && canvasRef.current) {
+      const aspectRatio = 9 / 16; // For vertical 1080p
+      const width = 1080;
+      const height = width / aspectRatio;
+
+      canvasRef.current.width = width;
+      canvasRef.current.height = height;
+      canvasRef.current.style.width = `${width}px`;
+      canvasRef.current.style.height = `${height}px`;
+    }
+  }, []);
 
   useEffect(() => {
-    //Setting Background Video
+    window.addEventListener("resize", updateCanvasSize);
+    return () => window.removeEventListener("resize", updateCanvasSize);
+  }, [updateCanvasSize]);
+
+  useEffect(() => {
     if (backgroundVideoRef.current) {
-      currentScene == 1
-        ? (backgroundVideoRef.current.src = CountrysideBackground)
-        : (backgroundVideoRef.current.src = InterviewBackground);
+      backgroundVideoRef.current.src = currentScene === 1 ? CountrysideBackground : InterviewBackground;
       backgroundVideoRef.current.loop = true;
       backgroundVideoRef.current.muted = true;
       backgroundVideoRef.current.play().catch((error) => {});
     }
 
-    //Setting Layer Video
-    if (currentScene == 1) {
-      if (layerVideoRef.current) {
-        layerVideoRef.current.src = CountrysideLayer;
-        layerVideoRef.current.loop = true;
-        layerVideoRef.current.muted = true;
-        layerVideoRef.current.play().catch((error) => {});
-      }
+    if (currentScene === 1 && layerVideoRef.current) {
+      layerVideoRef.current.src = CountrysideLayer;
+      layerVideoRef.current.loop = true;
+      layerVideoRef.current.muted = true;
+      layerVideoRef.current.play().catch((error) => {});
     }
 
-    //Setting Logo Image
     if (logoRef.current) {
       logoRef.current.src = Logo;
     }
@@ -82,7 +93,7 @@ const BackgroundSegmentation = () => {
 
   useEffect(() => {
     let intervalId;
-    const fillDuration = 1500; 
+    const fillDuration = 1500;
     const updateInterval = 50;
     const incrementAmount = fillDuration / updateInterval;
 
@@ -95,7 +106,6 @@ const BackgroundSegmentation = () => {
           setRightControlValue(prev => Math.min(100, prev + incrementAmount));
         }
       }, updateInterval);
-
     } else {
       setLeftControlValue(0);
       setRightControlValue(0);
@@ -109,25 +119,16 @@ const BackgroundSegmentation = () => {
   }, [thumbsUp, indexUp]);
 
   useEffect(() => {
-  }, [rightControlValue]);
-
-  useEffect(() => {
-    if (thumbsUp) {
+    if (thumbsUp || indexUp) {
       timerRef.current = setTimeout(() => {
         if (!isCaptureActive) {
-          setIsCaptureActive(true);
+          if (thumbsUp) {
+            setIsCaptureActive(true);
+          } else if (indexUp) {
+            changeScene();
+          }
         }
       }, 1500);
-    } else if (indexUp) {
-      timerRef.current = setTimeout(() => {
-        if (!isCaptureActive) {
-          changeScene();
-        }
-      }, 1500);
-    } else {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
     }
 
     return () => {
@@ -136,146 +137,6 @@ const BackgroundSegmentation = () => {
       }
     };
   }, [thumbsUp, indexUp]);
-
-  useEffect(() => {
-    const updateOverlaySize = () => {
-      if (canvasRef.current && overlayRef.current) {
-        const { width, height } = canvasRef.current.getBoundingClientRect();
-        overlayRef.current.style.width = `${width}px`;
-        overlayRef.current.style.height = `${height}px`;
-      }
-    };
-
-    updateOverlaySize();
-    window.addEventListener("resize", updateOverlaySize);
-
-    return () => window.removeEventListener("resize", updateOverlaySize);
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener("resize", updateCanvasSize);
-    return () => window.removeEventListener("resize", updateCanvasSize);
-  }, []);
-
-  const startRecording = useCallback(() => {
-    if (canvasRef.current) {
-      const stream = canvasRef.current.captureStream(30);
-  
-      // List of MIME types to try, in order of preference
-      const mimeTypes = [
-        'video/mp4; codecs=h264,aac',
-        'video/webm; codecs=h264,opus',
-        'video/webm; codecs=vp9,opus',
-        'video/webm; codecs=vp8,opus'
-      ];
-  
-      let selectedMimeType = null;
-      for (const mimeType of mimeTypes) {
-        if (MediaRecorder.isTypeSupported(mimeType)) {
-          selectedMimeType = mimeType;
-          break;
-        }
-      }
-  
-      if (!selectedMimeType) {
-        console.error('No supported MIME types found');
-        alert('Your browser does not support any of the required video formats. Please try a different browser.');
-        return;
-      }
-  
-      console.log(`Using MIME type: ${selectedMimeType}`);
-  
-      mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: selectedMimeType,
-        videoBitsPerSecond: 2500000
-      });
-  
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
-        }
-      };
-  
-      mediaRecorderRef.current.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: selectedMimeType.split(';')[0] });
-        chunksRef.current = [];
-  
-        console.log(`Recorded video MIME type: ${blob.type}`);
-  
-        const uniqueId = await saveCurrentCapture(blob);
-  
-        const url = new URL(window.location.href);
-        const newPath = url.origin + "/video" + "/" + uniqueId;
-        setCaptureId(newPath);
-      };
-  
-      mediaRecorderRef.current.start();
-  
-      setTimeout(() => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-          mediaRecorderRef.current.stop();
-        }
-      }, 5000);
-    }
-  }, []);
-  
-  useEffect(() => {
-    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-    const runCountdown = async () => {
-
-      setUIStage(1);
-
-      // Countdown starts
-      for (let i = 5; i >= 0; i--) {
-        await sleep(1000);
-        setTriggerCounter(i);
-      }
-
-      setTriggerCounter(5);
-
-      setCircleUI(true);
-      await sleep(2000);
-
-      // Start recording
-      setUIStage(2);
-
-      setCircleUI(false);
-
-      startRecording();
-
-      // Wait for 5 seconds of recording
-      for (let i = 5; i >= 0; i--) {
-        await sleep(1000);
-        setTriggerCounter(i);
-      }
-      
-      await sleep(1000);
-      setTriggerCounter(5);
-
-      setUIStage(0);
-      setCircleUI(true);
-    
-      //experience restarts
-      setTimeout(() => {
-        setCaptureId(null);
-        setCircleUI(false);
-        setIsCaptureActive(false);
-      }, 60000);
-    };
-
-    if (isCaptureActive == true) {
-
-      //Start Countdown
-      runCountdown();
-    }
-
-    return () => {
-      //When Capture finishes restart countdown
-      setTriggerCounter(5);
-    };
-  }, [isCaptureActive]);
-
 
   const initializeSegmenter = useCallback(async () => {
     try {
@@ -376,21 +237,14 @@ const BackgroundSegmentation = () => {
       if (segmenterRef.current) {
         segmenterRef.current.close();
       }
+      if (gestureRecognizerRef.current) {
+        gestureRecognizerRef.current.close();
+      }
+      if (videoRef.current && videoRef.current.srcObject) {
+        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+      }
     };
-  }, [loadModels]);
-
-  const updateCanvasSize = () => {
-    if (videoRef.current && canvasRef.current) {
-      const aspectRatio = 9 / 16; // For vertical 1080p
-      const width = 1080;
-      const height = width / aspectRatio;
-
-      canvasRef.current.width = width;
-      canvasRef.current.height = height;
-      canvasRef.current.style.width = `${width}px`;
-      canvasRef.current.style.height = `${height}px`;
-    }
-  };
+  }, [loadModels, initializeSegmenter, initializePoseLandmarker, updateCanvasSize]);
 
   const onResults = useCallback((results) => {
     if (!canvasRef.current || !backgroundVideoRef.current) {
@@ -408,14 +262,11 @@ const BackgroundSegmentation = () => {
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-    // Calculate scale to fit height
     const scale = canvasHeight / imageHeight;
     const scaledWidth = imageWidth * scale;
 
-    // Calculate x-offset to center horizontally
     const xOffset = (canvasWidth - scaledWidth) / 2;
 
-    // Draw the segmentation mask (already inverted due to selfieMode: true)
     canvasCtx.drawImage(
       results.segmentationMask,
       xOffset,
@@ -424,22 +275,18 @@ const BackgroundSegmentation = () => {
       canvasHeight
     );
 
-    // Set composite operation to only draw where the mask is
     canvasCtx.globalCompositeOperation = "source-in";
 
-    // Draw the camera feed (now flipped)
     canvasCtx.drawImage(
-      results.image, // Changed from results.segmentationMask to results.image
+      results.image,
       xOffset,
       0,
       scaledWidth,
       canvasHeight
     );
 
-    // Reset the transform
     canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
 
-    // Draw the background video behind everything
     canvasCtx.globalCompositeOperation = "destination-over";
     canvasCtx.drawImage(
       backgroundVideoRef.current,
@@ -449,14 +296,11 @@ const BackgroundSegmentation = () => {
       canvasHeight
     );
 
-    // Draw Layer
-
-    if(currentScene == 1){
+    if(currentScene === 1){
       canvasCtx.globalCompositeOperation = "source-over";
       canvasCtx.drawImage(layerVideoRef.current, 0, 0, canvasWidth, canvasHeight);
     }
 
-    // Draw Logo
     canvasCtx.globalCompositeOperation = "source-over";
     canvasCtx.drawImage(logoRef.current, 0, 0, canvasWidth, canvasHeight);
 
@@ -546,9 +390,9 @@ const BackgroundSegmentation = () => {
     isCaptureActive,
   ]);
 
-  const changeScene = async () => {
-    currentScene == 1 ? setCurrentScene(2) : setCurrentScene(1);
-  };
+  const changeScene = useCallback(() => {
+    setCurrentScene(prevScene => prevScene === 1 ? 2 : 1);
+  }, []);
 
   useEffect(() => {
     if (loadingState === "ready" && isSegmenting) {
@@ -561,9 +405,9 @@ const BackgroundSegmentation = () => {
     };
   }, [loadingState, isSegmenting, sendToSegmenter]);
 
-  const startSegmentation = useCallback(async () => {
+  const startSegmentation = useCallback(() => {
     setIsSegmenting(true);
-  }, [initializeSegmenter]);
+  }, []);
 
   const stopSegmentation = useCallback(() => {
     setIsSegmenting(false);
@@ -571,6 +415,116 @@ const BackgroundSegmentation = () => {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
+  }, []);
+
+  const startRecording = useCallback(() => {
+    if (canvasRef.current) {
+      const stream = canvasRef.current.captureStream(30);
+  
+      const mimeTypes = [
+        'video/mp4; codecs=h264,aac',
+      ];
+  
+      let selectedMimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type));
+  
+      if (!selectedMimeType) {
+        console.error('No supported MIME types found');
+        alert('Your browser does not support any of the required video formats. Please try a different browser.');
+        return;
+      }
+  
+      console.log(`Using MIME type: ${selectedMimeType}`);
+  
+      mediaRecorderRef.current = new MediaRecorder(stream, {
+        mimeType: selectedMimeType,
+        videoBitsPerSecond: 2500000
+      });
+  
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+  
+      mediaRecorderRef.current.onstop = async () => {
+        const blob = new Blob(chunksRef.current, { type: selectedMimeType.split(';')[0] });
+        chunksRef.current = [];
+  
+        console.log(`Recorded video MIME type: ${blob.type}`);
+  
+        const uniqueId = await saveCurrentCapture(blob);
+  
+        const newPath = "https://sigmaagro-8488e.web.app/video" + "/" + uniqueId;
+        setCaptureId(newPath);
+      };
+  
+      mediaRecorderRef.current.start();
+  
+      setTimeout(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+          mediaRecorderRef.current.stop();
+        }
+      }, 5000);
+    }
+  }, []);
+
+  useEffect(() => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const runCountdown = async () => {
+      setUIStage(1);
+
+      for (let i = 5; i >= 0; i--) {
+        await sleep(1000);
+        setTriggerCounter(i);
+      }
+
+      setTriggerCounter(5);
+      setCircleUI(true);
+      await sleep(2000);
+
+      setUIStage(2);
+      setCircleUI(false);
+
+      startRecording();
+
+      for (let i = 5; i >= 0; i--) {
+        await sleep(1000);
+        setTriggerCounter(i);
+      }
+      
+      await sleep(1000);
+      setTriggerCounter(5);
+
+      setUIStage(0);
+      setCircleUI(true);
+    
+      captureTimeoutRef.current = setTimeout(() => {
+        setCaptureId(null);
+        setCircleUI(false);
+        setIsCaptureActive(false);
+      }, 60000);
+    };
+
+    if (isCaptureActive) {
+      runCountdown();
+    }
+
+    return () => {
+      setTriggerCounter(5);
+      if (captureTimeoutRef.current) {
+        clearTimeout(captureTimeoutRef.current);
+      }
+    };
+  }, [isCaptureActive, startRecording]);
+
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stop();
+      }
+      chunksRef.current = [];
+    };
   }, []);
 
   return (
@@ -643,7 +597,7 @@ const BackgroundSegmentation = () => {
         src={Logo}
         alt="Logo"
         className="hidden"
-    />    
+      />    
 
       <div className="w-full h-full flex items-center justify-center absolute top-0 left-1/2 transform -translate-x-1/2">
         <canvas
@@ -659,7 +613,7 @@ const BackgroundSegmentation = () => {
         </div>
         {isSegmenting && <div className="absolute bottom-0 w-full h-auto z-50">
           {!isCaptureActive && <Controls leftControlValue={leftControlValue} rightControlValue={rightControlValue} />}
-          {isCaptureActive && UIStage != 0 && <RecordingBar stage={UIStage} countdown={triggerCounter}/>}
+          {isCaptureActive && UIStage !== 0 && <RecordingBar stage={UIStage} countdown={triggerCounter}/>}
         </div>}
 
         {UIStage === 0 && circleUI && (
