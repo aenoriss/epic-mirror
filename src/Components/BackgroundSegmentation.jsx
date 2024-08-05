@@ -15,6 +15,9 @@ import CountrysideBackground from "../assets/countryside/background.mp4";
 import CountrysideLayer from "../assets/countryside/layer_webm.webm";
 import InterviewBackground from "../assets/interview/background.mp4";
 
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
+
 const BackgroundSegmentation = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -45,6 +48,45 @@ const BackgroundSegmentation = () => {
   const [leftControlValue, setLeftControlValue] = useState(0);
   const [rightControlValue, setRightControlValue] = useState(0);
   const [UIStage, setUIStage] = useState(1);
+
+  const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
+  const ffmpegRef = useRef(new FFmpeg());
+  const messageRef = useRef(null);
+
+  const loadFFmpeg = async () => {
+    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm'
+    const ffmpeg = ffmpegRef.current;
+    ffmpeg.on('log', ({ message }) => {
+      console.log("FFmpeg log:", message);
+      if (messageRef.current) {
+        messageRef.current.innerHTML = message;
+      }
+    });
+  
+    try {
+      console.log("Starting to load FFmpeg...");
+      const loadStart = Date.now();
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      });
+      const loadTime = Date.now() - loadStart;
+      console.log(`FFmpeg loaded successfully in ${loadTime}ms`);
+      setFfmpegLoaded(true);
+    } catch (error) {
+      console.error("Failed to load FFmpeg:", error);
+      console.error("Error stack:", error.stack);
+      setFfmpegLoaded(false);
+      setError("Failed to load video processing. Please refresh and try again.");
+    }
+  };
+
+  useEffect(() => {
+    loadFFmpeg().catch(error => {
+      console.error("Failed to load FFmpeg:", error);
+      setError("Failed to load video processing. Please refresh and try again.");
+    });
+  }, []);
 
   const updateCanvasSize = useCallback(() => {
     if (videoRef.current && canvasRef.current) {
@@ -418,25 +460,30 @@ const BackgroundSegmentation = () => {
   }, []);
 
   const startRecording = useCallback(() => {
+    console.log("Starting recording process...");
+    
+    if (!ffmpegLoaded) {
+      console.error('FFmpeg is not loaded. Cannot start recording.');
+      alert('Video processing is not ready. Please wait or refresh the page.');
+      return;
+    }
+  
     if (canvasRef.current) {
+      console.log("Capturing stream from canvas...");
       const stream = canvasRef.current.captureStream(30);
   
-      const mimeTypes = [
-        'video/mp4; codecs=h264,aac',
-      ];
+      const mimeType = 'video/webm;codecs=vp9,opus';
   
-      let selectedMimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type));
-  
-      if (!selectedMimeType) {
-        console.error('No supported MIME types found');
-        alert('Your browser does not support any of the required video formats. Please try a different browser.');
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        console.error('WebM with VP9 and Opus codecs not supported');
+        alert('Your browser does not support the required video format. Please try a different browser.');
         return;
       }
   
-      console.log(`Using MIME type: ${selectedMimeType}`);
+      console.log(`Using MIME type: ${mimeType}`);
   
       mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: selectedMimeType,
+        mimeType: mimeType,
         videoBitsPerSecond: 2500000
       });
   
@@ -447,26 +494,95 @@ const BackgroundSegmentation = () => {
       };
   
       mediaRecorderRef.current.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: selectedMimeType.split(';')[0] });
-        chunksRef.current = [];
+        console.log("MediaRecorder stopped. Processing recorded data...");
+        try {
+          const webmBlob = new Blob(chunksRef.current, { type: mimeType });
+          chunksRef.current = [];
   
-        console.log(`Recorded video MIME type: ${blob.type}`);
+          console.log(`Recorded video MIME type: ${webmBlob.type}`);
+          console.log(`Recorded video size: ${webmBlob.size} bytes`);
   
-        const uniqueId = await saveCurrentCapture(blob);
+          const ffmpeg = ffmpegRef.current;
   
-        const newPath = "https://sigmaagro-8488e.web.app/video" + "/" + uniqueId;
-        setCaptureId(newPath);
+          console.log("Writing input file to FFmpeg...");
+          await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
+  
+          console.log("Starting FFmpeg conversion...");
+          const conversionStart = Date.now();
+          const conversionTimeout = 60000; // 1 minute timeout
+  
+          let lastProgressTime = 0;
+          ffmpeg.on('progress', ({ time }) => {
+            if (time - lastProgressTime > 1000) { // Log progress every second
+              console.log(`Conversion progress: ${time}ms`);
+              lastProgressTime = time;
+            }
+          });
+  
+          const conversionPromise = ffmpeg.exec([
+            '-i', 'input.webm',
+            '-c:v', 'libx264',
+            '-preset', 'ultrafast',
+            '-crf', '28',
+            '-vf', 'scale=640:-2,fps=15',  // Reduce resolution to 640p width and 15 fps
+            '-c:a', 'aac',
+            '-b:a', '64k',
+            '-movflags', '+faststart',
+            'output.mp4'
+          ]);
+          
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("FFmpeg conversion timed out")), conversionTimeout)
+          );
+  
+          await Promise.race([conversionPromise, timeoutPromise]);
+  
+          const conversionTime = Date.now() - conversionStart;
+          console.log(`FFmpeg conversion completed in ${conversionTime}ms`);
+  
+          console.log("Reading output file...");
+          const data = await ffmpeg.readFile('output.mp4');
+          console.log(`Converted video size: ${data.byteLength} bytes`);
+  
+          const mp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
+          console.log("MP4 Blob created:", mp4Blob);
+          console.log(`MP4 Blob size: ${mp4Blob.size} bytes`);
+  
+          // Clean up
+          console.log("Cleaning up temporary files...");
+          await ffmpeg.deleteFile('input.webm');
+          await ffmpeg.deleteFile('output.mp4');
+  
+          console.log("Saving to storage...");
+          const uniqueId = await saveCurrentCapture(mp4Blob);
+  
+          if (!uniqueId) {
+            throw new Error("Failed to save video to storage");
+          }
+  
+          const newPath = "https://sigmaagro-8488e.web.app/video" + "/" + uniqueId;
+          setCaptureId(newPath);
+          console.log("Capture saved with ID:", uniqueId);
+        } catch (error) {
+          console.error('Error in video processing:', error);
+          console.error('Error stack:', error.stack);
+          alert('An error occurred while processing the video. Please check the console for details and try again.');
+        }
       };
   
+      console.log("Starting MediaRecorder...");
       mediaRecorderRef.current.start();
   
       setTimeout(() => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+          console.log("Stopping MediaRecorder after 5 seconds...");
           mediaRecorderRef.current.stop();
         }
       }, 5000);
+    } else {
+      console.error("Canvas reference is not available");
     }
-  }, []);
+  }, [ffmpegLoaded]);
 
   useEffect(() => {
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

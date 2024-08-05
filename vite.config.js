@@ -7,9 +7,18 @@ export default defineConfig({
   build: {
     rollupOptions: {
       plugins: [mediapipe_workaround()],
+    }
+  },
+  server: {
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "require-corp",
     },
   },
-  // ... any other existing configuration
+  optimizeDeps: {
+    exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util']
+  },
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+  },
 });
-
-
