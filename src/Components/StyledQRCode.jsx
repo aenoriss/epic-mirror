@@ -45,7 +45,7 @@ const StyledQRCode = ({ value, stage, size = 700 }) => {
             </div>
           )}
 
-          {stage == 0 && (
+          {stage == 0 && value && (
             <div className="absolute bottom-14 left-1/2 transform -translate-x-1/2 text-white text-4xl font-bold">
               {String(Math.floor(countdown / 60)).padStart(2, "0")}:
               {String(countdown % 60).padStart(2, "0")}
