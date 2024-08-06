@@ -90,7 +90,7 @@ const BackgroundSegmentation = () => {
 
   const updateCanvasSize = useCallback(() => {
     if (videoRef.current && canvasRef.current) {
-      const aspectRatio = 9 / 16; // For vertical 1080p
+      const aspectRatio = 9 / 16; 
       const width = 1080;
       const height = width / aspectRatio;
 
@@ -224,6 +224,7 @@ const BackgroundSegmentation = () => {
               "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task",
             delegate: "GPU",
           },
+          numHands: 2,
           runningMode: "VIDEO",
         }
       );
@@ -292,44 +293,50 @@ const BackgroundSegmentation = () => {
     if (!canvasRef.current || !backgroundVideoRef.current) {
       return;
     }
-
+  
     const canvasCtx = canvasRef.current.getContext("2d");
-
+  
     const canvasWidth = canvasRef.current.width;
     const canvasHeight = canvasRef.current.height;
-
+  
     const imageWidth = results.image.width;
     const imageHeight = results.image.height;
-
+  
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
-
-    const scale = canvasHeight / imageHeight;
-    const scaledWidth = imageWidth * scale;
-
-    const xOffset = (canvasWidth - scaledWidth) / 2;
-
+  
+    // Calculate the scaling factor to cover the entire canvas
+    const scale = Math.max(canvasWidth / imageWidth, canvasHeight / imageHeight);
+    const scaledWidth = (imageWidth * scale) * 0.8;
+    const scaledHeight = (imageHeight * scale) * 0.8;;
+  
+    // Calculate offsets to center the image
+    const offsetX = (canvasWidth - scaledWidth) / 2;
+    const offsetY = (canvasHeight - scaledHeight) / 2;
+  
+    // Draw segmentation mask
     canvasCtx.drawImage(
       results.segmentationMask,
-      xOffset,
-      0,
-      scaledWidth,
-      canvasHeight
+      offsetX - 200,
+      offsetY,
+      scaledWidth + 340,
+      scaledHeight + 600
     );
-
+  
     canvasCtx.globalCompositeOperation = "source-in";
-
+  
+    // Draw the original image
     canvasCtx.drawImage(
       results.image,
-      xOffset,
-      0,
-      scaledWidth,
-      canvasHeight
+      offsetX - 200,
+      offsetY,
+      scaledWidth + 340,
+      scaledHeight + 600
     );
-
-    canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
-
+  
     canvasCtx.globalCompositeOperation = "destination-over";
+  
+    // Draw the background video
     canvasCtx.drawImage(
       backgroundVideoRef.current,
       0,
@@ -337,15 +344,15 @@ const BackgroundSegmentation = () => {
       canvasWidth,
       canvasHeight
     );
-
+  
     if(currentScene === 1){
       canvasCtx.globalCompositeOperation = "source-over";
       canvasCtx.drawImage(layerVideoRef.current, 0, 0, canvasWidth, canvasHeight);
     }
-
+  
     canvasCtx.globalCompositeOperation = "source-over";
     canvasCtx.drawImage(logoRef.current, 0, 0, canvasWidth, canvasHeight);
-
+  
     canvasCtx.restore();
   }, [currentScene]);
 
@@ -379,12 +386,18 @@ const BackgroundSegmentation = () => {
           let currentIndexUp = false;
 
           if (gestureResults.gestures && gestureResults.gestures.length > 0) {
-            currentThumbsUp = gestureResults.gestures[0].some(
-              (gesture) => gesture.categoryName === "Thumb_Up"
-            );
-            currentIndexUp = gestureResults.gestures[0].some(
-              (gesture) => gesture.categoryName === "Pointing_Up"
-            );
+
+            for (let i = 0; i < Math.min(gestureResults.gestures.length, 2); i++) {
+              const handGestures = gestureResults.gestures[i];
+              
+              if (handGestures.some((gesture) => gesture.categoryName === "Thumb_Up")) {
+                currentThumbsUp = true;
+              }
+              
+              if (handGestures.some((gesture) => gesture.categoryName === "Pointing_Up")) {
+                currentIndexUp = true;
+              }
+            }
           }
 
           setThumbsUp(currentThumbsUp);

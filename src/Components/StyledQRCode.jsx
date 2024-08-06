@@ -17,19 +17,27 @@ const StyledQRCode = ({ value, stage, size = 700 }) => {
       <div className="relative" style={{ width: size, height: size }}>
         <div
           className="absolute inset-0 rounded-full flex items-center justify-center"
-          style={{ 
+          style={{
             backgroundColor: "#26C1D8",
-            padding: size * 0.1 
+            padding: size * 0.1,
           }}
         >
-          {stage == 0 && value ? (
+          {stage == 0 && value && (
             <QRCode
               value={value}
               size={size * 0.6}
               fgColor="#FFFFFF"
               bgColor="transparent"
             />
-          ) : (
+          )}
+
+          {stage == 0 && !value && (
+            <p className="text-white text-[3rem] font-bold">
+              PROCESANDO VIDEO...
+          </p>
+          )}
+
+          {stage == 1 && (
             <div>
               <p className="text-white text-[3rem] font-bold">
                 GRABACION INICIADA
@@ -37,10 +45,12 @@ const StyledQRCode = ({ value, stage, size = 700 }) => {
             </div>
           )}
 
-          {stage == 0 && <div className="absolute bottom-14 left-1/2 transform -translate-x-1/2 text-white text-4xl font-bold">
-            {String(Math.floor(countdown / 60)).padStart(2, "0")}:
-            {String(countdown % 60).padStart(2, "0")}
-          </div>}
+          {stage == 0 && (
+            <div className="absolute bottom-14 left-1/2 transform -translate-x-1/2 text-white text-4xl font-bold">
+              {String(Math.floor(countdown / 60)).padStart(2, "0")}:
+              {String(countdown % 60).padStart(2, "0")}
+            </div>
+          )}
         </div>
       </div>
     </div>
