@@ -45,20 +45,26 @@ const UserForm = ({ changeStage }) => {
   };
 
   return (
-    <div className="relative flex flex-col items-center justify-top min-h-screen bg-black pt-[15%]">
-      <div className="w-full flex flex-col items-center">
+    <div className="relative flex flex-col items-center justify-top min-h-screen bg-black overflow-hidden">
+      <img
+        src={webBackground}
+        alt="Background"
+        className="absolute bottom-0 w-full z-0 h-[%]"
+        style={{ pointerEvents: "none" }}
+      />
+      <div className="relative z-10 w-full flex flex-col items-center pt-[15%]">
         <img src={logoLanding} width="40%" alt="Logo" className="mb-8" />
         <div className="text-white text-[1.3rem] w-[55%] font-bold text-center">
-          La <span className="text-blue-300">nueva visión</span> de la
+          La <span className="text-[#26C1D8]">nueva visión</span> de la
           agricultura
         </div>
       </div>
 
-      <div>
-        <div className="text-white flex flex-col items-center mt-[10%] w-[67%]">
-          <div className="text-[1rem] font-bold">Procesando tu video...</div>
+      <div className="relative z-10 ">
+        <div className="text-white flex flex-col items-left mt-[10%] w-[67%] ml-6">
+          <div className="text-[1rem] text-[#26C1D8] font-bold">Estamos preparando tu video...</div>
           <div className="text-[1rem]">
-            Mientras tanto dejanos algunos datos para que podamos seguir en
+            Mientras tanto dejanos algunos datos para seguir en
             contacto.
           </div>
         </div>
@@ -84,7 +90,7 @@ const UserForm = ({ changeStage }) => {
                   required
                 />
                 {emailError && (
-                  <p className="text-red-500 text-sm mb-2">{emailError}</p>
+                  <p className="text-red-500 font-bold text-sm mb-2">{emailError}</p>
                 )}
               </div>
             )}
@@ -93,9 +99,9 @@ const UserForm = ({ changeStage }) => {
               <div className="w-full mb-4">
                 <label
                   htmlFor="phoneNumber"
-                  className="block mb-2 font-medium text-gray-700"
+                  className="block mb-2 font-medium text-white"
                 >
-                  Phone Number
+                  Numero de Telefono
                 </label>
                 <input
                   type="tel"
@@ -112,43 +118,24 @@ const UserForm = ({ changeStage }) => {
             )}
 
             <div className="w-full flex justify-between">
-              {step > 1 && (
-                <button
-                  type="button"
-                  className="px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                  onClick={handlePreviousStep}
-                >
-                  Previous
-                </button>
-              )}
-
               {step < 2 ? (
                 <button
                   type="button"
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600"
-                  onClick={handleNextStep}
+                  className="w-full px-6 py-3 text-sm font-medium text-white bg-[#26C1D8] rounded-md hover:bg-[#1fa8bd]"                  onClick={handleNextStep}
                 >
-                  Next
+                  Continuar
                 </button>
               ) : (
                 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600"
-                >
-                  Submit
+                  className="w-full px-6 py-3 text-sm font-medium text-white bg-[#26C1D8] rounded-sm hover:bg-[#1fa8bd]"                >
+                  Completar
                 </button>
               )}
             </div>
           </form>
         </div>
       </div>
-
-      <img
-        src={webBackground}
-        alt="Background"
-        className="absolute bottom-0 w-full"
-        style={{ pointerEvents: "none" }}
-      />
     </div>
   );
 };

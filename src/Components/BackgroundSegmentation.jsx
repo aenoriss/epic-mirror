@@ -318,7 +318,7 @@ const BackgroundSegmentation = () => {
     canvasCtx.drawImage(
       results.segmentationMask,
       offsetX - 200,
-      offsetY + 30,
+      offsetY - 160,
       scaledWidth + 340,
       scaledHeight + 600
     );
@@ -329,7 +329,7 @@ const BackgroundSegmentation = () => {
     canvasCtx.drawImage(
       results.image,
       offsetX - 200,
-      offsetY + 30,
+      offsetY -160,
       scaledWidth + 340,
       scaledHeight + 600
     );
@@ -522,7 +522,7 @@ const BackgroundSegmentation = () => {
   
           console.log("Starting FFmpeg conversion...");
           const conversionStart = Date.now();
-          const conversionTimeout = 60000; // 1 minute timeout
+          const conversionTimeout = 40000; // 1 minute timeout
   
           let lastProgressTime = 0;
           ffmpeg.on('progress', ({ time }) => {

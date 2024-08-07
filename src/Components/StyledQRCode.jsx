@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import QRCode from "qrcode.react";
 
 const StyledQRCode = ({ value, stage, size = 700 }) => {
-  const [countdown, setCountdown] = useState(60);
+  const [countdown, setCountdown] = useState(40);
 
   useEffect(() => {
     const timer = setInterval(() => {

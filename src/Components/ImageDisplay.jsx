@@ -68,27 +68,24 @@ const VideoDisplay = ({downloadURL, id}) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full">
-      <div className="flex space-x-4 mb-4">
-        <button
-          onClick={handleDownload}
-          disabled={!videoBlob}
-          className="px-4 py-2 font-semibold text-white bg-blue-500 rounded-lg shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-600 active:bg-blue-700"
-        >
-          Descargar Video
-        </button>
+    <div className="flex flex-col items-center bg-black justify-center w-full h-full">
+      <div className="flex flex-col mb-4 w-full p-5 mb-5">
+        <div className="text-[#26C1D8] font-bold text-[1.5rem] ">
+          ¡Comparti tu video!
+        </div>
+        <div className="text-white text-[1.2rem] mt-2">
+        Podes mandarlo por Whatsapp o usarlo en una historia de Instagram, entre otras alternativas.
+        </div>
         <button
           onClick={handleShare}
           disabled={!canShare}
-          className="px-4 py-2 font-semibold text-white bg-green-500 rounded-lg shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-600 active:bg-green-700"
-        >
+          className="w-full px-6 py-3 text-sm mt-[2rem] font-medium text-white bg-[#26C1D8] rounded-md">
           Compartir
         </button>
       </div>
       {!canShare && videoBlob && (
         <p className="text-yellow-600 mb-2">Sharing may not be supported on this device or for this file.</p>
       )}
-      <h1 className="text-xl font-bold mb-4">CLIENT {id}</h1>
       {videoBlob ? (
         <video 
           ref={videoRef}
