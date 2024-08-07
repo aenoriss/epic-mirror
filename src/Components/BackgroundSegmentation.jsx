@@ -318,7 +318,7 @@ const BackgroundSegmentation = () => {
     canvasCtx.drawImage(
       results.segmentationMask,
       offsetX - 200,
-      offsetY,
+      offsetY + 30,
       scaledWidth + 340,
       scaledHeight + 600
     );
@@ -329,7 +329,7 @@ const BackgroundSegmentation = () => {
     canvasCtx.drawImage(
       results.image,
       offsetX - 200,
-      offsetY,
+      offsetY + 30,
       scaledWidth + 340,
       scaledHeight + 600
     );
@@ -347,7 +347,7 @@ const BackgroundSegmentation = () => {
   
     if(currentScene === 1){
       canvasCtx.globalCompositeOperation = "source-over";
-      canvasCtx.drawImage(layerVideoRef.current, 0, 0, canvasWidth, canvasHeight);
+      canvasCtx.drawImage(layerVideoRef.current, 0, 300, canvasWidth, canvasHeight);
     }
   
     canvasCtx.globalCompositeOperation = "source-over";
