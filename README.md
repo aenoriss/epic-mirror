@@ -10,7 +10,7 @@ This is the software behind a physical booth. A tall vertical screen shows a liv
 
 - Real-time background replacement from a webcam, no green screen needed
 - Hand-gesture control: hold a thumbs-up to start recording, hold a pointing finger to switch scenes
-- A dwell-to-confirm UI where each gesture charges a radial meter over 1.5 seconds, so nothing fires by accident
+- A dwell-to-confirm UI, so a passing gesture never fires by accident
 - Records a 5-second clip of the composited canvas, transcodes it to MP4 in the browser, and uploads it
 - Shows a QR code that opens the clip on the visitor's phone, behind a short email and phone form
 - On the phone, share the video through the native share sheet or download it
