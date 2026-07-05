@@ -38,7 +38,7 @@ The person-in-a-scene effect comes straight from canvas composite operations. Ea
 
 ### In-browser transcode
 
-MediaRecorder captures the canvas stream as WebM (VP9 and Opus). Then ffmpeg.wasm transcodes it to H.264 MP4 right in the browser before upload (ultrafast, scaled to 640, 15 fps, faststart). WebM does not play or share cleanly on iOS, and the booth hands its output to whatever phone the visitor is holding. A 40-second timeout wraps the conversion, so a stuck encode never hangs the booth.
+MediaRecorder captures the canvas stream as WebM (VP9 and Opus). Then ffmpeg.wasm transcodes it to H.264 MP4 right in the browser before upload (ultrafast, scaled to 640, 15 fps, faststart), because WebM does not play or share cleanly on iOS and the booth hands its output to whatever phone the visitor is holding. A 40-second timeout wraps the conversion, so a stuck encode never hangs the booth.
 
 ### Gesture dwell
 
