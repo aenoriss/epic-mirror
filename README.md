@@ -20,7 +20,7 @@ This is the software behind a physical booth. A tall vertical screen shows a liv
 Everything runs client-side in the browser. Two MediaPipe models read the same webcam frame each tick: SelfieSegmentation for the person mask, and the tasks-vision GestureRecognizer for the hands.
 
 ```mermaid
-flowchart TD
+flowchart LR
   CAM[Webcam frame] --> SEG[SelfieSegmentation]
   CAM --> GES[Gesture recognizer]
   SEG --> C[Canvas compositor]
