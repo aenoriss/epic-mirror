@@ -1,10 +1,10 @@
 # Epic Mirror
 
-An interactive "magic mirror" installation. You stand in front of a camera totem, it cuts you out of your background in real time and drops you into an animated scene, you control it with hand gestures, and it hands you a short video of the result by QR code. The repo was renamed from sigmaAgro, which is the brand it was built for, an agritech company, so the scenes and copy are theirs.
+An interactive "magic mirror" installation. You stand in front of a camera totem. It cuts you out of your background in real time, drops you into an animated scene, and lets you drive the whole thing with hand gestures. When you finish, it hands you a short video by QR code. I built it for SigmaAgro, an agritech brand, so the scenes and copy are theirs.
 
 ## What it is
 
-This is the software behind a physical booth. A tall vertical screen shows a live, composited view of the visitor: the camera feed with the background replaced by a looping branded scene (a countryside, an interview set), a foreground layer, and a logo, all stacked on one canvas at 1080 by 1920. There is no keyboard and no touch. You control it with your hands, and you leave with a shareable clip.
+This is the software behind a physical booth. A tall vertical screen shows a live, composited view of the visitor: the camera feed with the background swapped for a looping branded scene (a countryside, an interview set), plus a foreground layer and a logo. It all stacks on one canvas at 1080 by 1920. No keyboard, no touch. You control it with your hands and walk away with a shareable clip.
 
 ## What it does
 
@@ -34,15 +34,15 @@ flowchart TD
 
 ### The compositor
 
-The person-in-a-scene effect is done with canvas composite operations, not a shader. Each frame draws the segmentation mask, switches to `source-in` so the next draw (the raw camera image) only survives where the mask is, then `destination-over` to slide the background video behind it, then `source-over` for the foreground layer and logo on top. Segmentation and gesture recognition fire together with `Promise.all` against the same video element, so the mask and the hand read stay in sync on one frame. It is a lot of state to hold in one component, but keeping the whole pipeline on the canvas is what lets it run in a plain browser with no server in the loop.
+The person-in-a-scene effect comes straight from canvas composite operations. Each frame draws the segmentation mask, then switches to `source-in` so the raw camera image only survives where the mask is. Next, `destination-over` slides the background video behind it. Then `source-over` lays the foreground layer and logo on top. Segmentation and gesture recognition fire together with `Promise.all` against the same video element, so the mask and the hand read stay in sync on a single frame. It is a lot of state for one component, but keeping the whole pipeline on the canvas is what lets it run in a plain browser with nothing on the server.
 
 ### In-browser transcode
 
-The capture is deliberately a two-format process. The canvas stream is recorded with MediaRecorder as WebM (VP9 and Opus), then ffmpeg.wasm transcodes it to H.264 MP4 (ultrafast, scaled to 640, 15 fps, faststart) right there in the browser before upload. The reason is the handoff: WebM does not play or share cleanly on iOS, and this booth gives its output to whatever phone the visitor is holding. Transcoding on the client costs a few seconds and a wasm download, but it means the file behind the QR code just works in an iPhone share sheet, which is the whole point of the installation. A 40-second timeout wraps the conversion so a stuck encode never hangs the booth.
+The recording happens in two formats on purpose. MediaRecorder captures the canvas stream as WebM (VP9 and Opus). Then ffmpeg.wasm transcodes it to H.264 MP4 right in the browser before upload (ultrafast, scaled to 640, 15 fps, faststart). Here is why. WebM does not play or share cleanly on iOS, and the booth hands its output to whatever phone the visitor is holding. The transcode costs a few seconds and a wasm download, but the file behind the QR code then just works in an iPhone share sheet. A 40-second timeout wraps the conversion, so a stuck encode never hangs the booth.
 
 ### Gesture dwell
 
-Small but important for a public kiosk: gestures do not trigger on sight. Holding a thumbs-up or a pointing finger fills a radial meter over 1.5 seconds (a `setInterval` steps the fill, a `setTimeout` fires the action), and letting go resets it. In a booth where people wave their hands around, the dwell window is what separates "I meant that" from noise.
+For a public kiosk, a gesture has to be deliberate. Hold a thumbs-up or a pointing finger and a radial meter fills over 1.5 seconds (a `setInterval` steps the fill, a `setTimeout` fires the action). Let go and it resets. Nothing triggers on sight, so in a booth full of people waving their hands, that dwell window separates "I meant that" from noise.
 
 ## Tech stack
 
@@ -70,4 +70,4 @@ Needs a Firebase project (Storage and Realtime Database) configured in `src/Util
 
 ## Status
 
-A portfolio interactive installation, built for the SigmaAgro brand. There is a Vite plugin shim in `src/Utils/mediapipe-workaround.js` that fixes MediaPipe's module exports at build time, which is a known rough edge of bundling those packages.
+An interactive installation built for the SigmaAgro brand. One rough edge worth flagging: there is a Vite plugin shim in `src/Utils/mediapipe-workaround.js` that patches MediaPipe's module exports at build time, a known pain when bundling those packages.
