@@ -34,15 +34,15 @@ flowchart TD
 
 ### The compositor
 
-The person-in-a-scene effect comes straight from canvas composite operations. Each frame draws the segmentation mask, then switches to `source-in` so the raw camera image only survives where the mask is. Next, `destination-over` slides the background video behind it. Then `source-over` lays the foreground layer and logo on top. Segmentation and gesture recognition fire together with `Promise.all` against the same video element, so the mask and the hand read stay in sync on a single frame. It is a lot of state for one component, but keeping the whole pipeline on the canvas is what lets it run in a plain browser with nothing on the server.
+The person-in-a-scene effect comes straight from canvas composite operations. Each frame draws the segmentation mask, then switches to `source-in` so the raw camera image only survives where the mask is. Next, `destination-over` slides the background video behind it. Then `source-over` lays the foreground layer and logo on top. Segmentation and gesture recognition fire together with `Promise.all` against the same video element, so the mask and the hand read stay in sync on a single frame.
 
 ### In-browser transcode
 
-The recording happens in two formats on purpose. MediaRecorder captures the canvas stream as WebM (VP9 and Opus). Then ffmpeg.wasm transcodes it to H.264 MP4 right in the browser before upload (ultrafast, scaled to 640, 15 fps, faststart). Here is why. WebM does not play or share cleanly on iOS, and the booth hands its output to whatever phone the visitor is holding. The transcode costs a few seconds and a wasm download, but the file behind the QR code then just works in an iPhone share sheet. A 40-second timeout wraps the conversion, so a stuck encode never hangs the booth.
+MediaRecorder captures the canvas stream as WebM (VP9 and Opus). Then ffmpeg.wasm transcodes it to H.264 MP4 right in the browser before upload (ultrafast, scaled to 640, 15 fps, faststart). WebM does not play or share cleanly on iOS, and the booth hands its output to whatever phone the visitor is holding. A 40-second timeout wraps the conversion, so a stuck encode never hangs the booth.
 
 ### Gesture dwell
 
-For a public kiosk, a gesture has to be deliberate. Hold a thumbs-up or a pointing finger and a radial meter fills over 1.5 seconds (a `setInterval` steps the fill, a `setTimeout` fires the action). Let go and it resets. Nothing triggers on sight, so in a booth full of people waving their hands, that dwell window separates "I meant that" from noise.
+Hold a thumbs-up or a pointing finger and a radial meter fills over 1.5 seconds (a `setInterval` steps the fill, a `setTimeout` fires the action). Let go before it fills and nothing happens.
 
 ## Tech stack
 
@@ -70,4 +70,4 @@ Needs a Firebase project (Storage and Realtime Database) configured in `src/Util
 
 ## Status
 
-An interactive installation built for the SigmaAgro brand. One rough edge worth flagging: there is a Vite plugin shim in `src/Utils/mediapipe-workaround.js` that patches MediaPipe's module exports at build time, a known pain when bundling those packages.
+An interactive installation built for the SigmaAgro brand. A Vite plugin shim in `src/Utils/mediapipe-workaround.js` patches MediaPipe's module exports at build time, a known pain when bundling those packages.
