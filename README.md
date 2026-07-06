@@ -1,4 +1,4 @@
-<img src="assets/header.webp" alt="Epic Mirror" width="400">
+<img src="assets/header.webp" alt="Epic Mirror" width="100%">
 
 # Epic Mirror
 
