@@ -1,3 +1,5 @@
+<img src="assets/header.webp" alt="Epic Mirror" width="400">
+
 # Epic Mirror
 
 An interactive "magic mirror" installation. You stand in front of a camera totem. It cuts you out of your background in real time, drops you into an animated scene, and lets you drive the whole thing with hand gestures. When you finish, it hands you a short video by QR code. I built it for SigmaAgro, an agritech brand, so the scenes and copy are theirs.
